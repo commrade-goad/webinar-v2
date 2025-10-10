@@ -1,0 +1,7 @@
+qr absence system
+export to csv all the webinar data
+
+
+TODO:
+- Add csv export on evpart (IDK)
+- Auto delete unused image and stuff? (IDK) (Maybe v2)
