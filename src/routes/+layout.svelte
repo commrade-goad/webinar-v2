@@ -17,7 +17,7 @@
 		goto('/login');
 	};
 
-	const hiddenRoutes = ['/land', '/login'];
+	const hiddenRoutes = ['/land', '/login', '/register'];
 	const pathname = $derived(page.url.pathname);
 	const hideLayout = $derived(hiddenRoutes.includes(pathname));
 </script>
