@@ -27,7 +27,9 @@
 	let eventLink = $state('');
 	let eventMax = $state(100);
 	let eventAtt = $state<AttTypeEnum>('online');
-	let eventImg = $state('');
+	let eventImg = $state(''); // This will now hold base64 data
+	let imageFile = $state<File | null>(null); // To hold the file object
+	let imagePreview = $state(''); // For image preview
 
 	// Current date/time and user info
 	let currentDateTime = $state('');
@@ -89,6 +91,73 @@
 		return { date: dateFormatted, time: timeFormatted };
 	}
 
+	// Handle image file selection
+	async function handleImageChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		if (!target.files || target.files.length === 0) {
+			imageFile = null;
+			imagePreview = '';
+			eventImg = '';
+			return;
+		}
+
+		const file = target.files[0];
+		
+		// Check file type
+		const validTypes = ['image/png', 'image/jpeg', 'image/webp'];
+		if (!validTypes.includes(file.type)) {
+			error = 'Invalid file type. Please upload a PNG, JPEG, or WebP image.';
+			target.value = '';
+			return;
+		}
+
+		// Check file size (max 2MB)
+		if (file.size > 2 * 1024 * 1024) {
+			error = 'Image size exceeds 2MB limit.';
+			target.value = '';
+			return;
+		}
+
+		imageFile = file;
+		
+		// Create preview
+		imagePreview = URL.createObjectURL(file);
+		
+		// Convert to base64
+		try {
+			const base64Data = await fileToBase64(file);
+			const response = await fetch('/api/upload-image-event', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ data: base64Data })
+			});
+			if (!response.ok) {
+				throw new Error(`Error: ${response.status}`);
+			}
+
+			const apiResponse: ApiResponse<{filename: string}> = await response.json();
+
+			if (!apiResponse.success) {
+				throw new Error(apiResponse.message || 'Failed to fetch webinars');
+			}
+            
+			eventImg = apiResponse.data.filename;
+		} catch (err) {
+			console.error('Error converting image to base64:', err);
+			error = 'Failed to process the image.';
+		}
+	}
+
+	// Convert file to base64
+	function fileToBase64(file: File): Promise<string> {
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.readAsDataURL(file);
+			reader.onload = () => resolve(reader.result as string);
+			reader.onerror = error => reject(error);
+		});
+	}
+
 	// Reset form fields
 	function resetForm() {
 		eventName = '';
@@ -102,6 +171,8 @@
 		eventMax = 100;
 		eventAtt = 'online';
 		eventImg = '';
+		imageFile = null;
+		imagePreview = '';
 		currentWebinarId = null;
 		isEditing = false;
 	}
@@ -131,7 +202,16 @@
 		eventLink = webinar.EventLink || '';
 		eventMax = webinar.EventMax || 100;
 		eventAtt = webinar.EventAtt || 'online';
-		eventImg = webinar.EventImg || '';
+		
+		// Set image if available
+		if (webinar.EventImg) {
+			imagePreview = webinar.EventImg;
+			eventImg = webinar.EventImg;
+		} else {
+			imagePreview = '';
+			eventImg = '';
+		}
+		
 		currentWebinarId = webinar.ID;
 
 		// Open form in edit mode
@@ -143,6 +223,10 @@
 	function closeForm() {
 		isFormOpen = false;
 		resetForm();
+		
+		// Clear any file input
+		const fileInput = document.getElementById('event-image') as HTMLInputElement;
+		if (fileInput) fileInput.value = '';
 	}
 
 	// Fetch all webinars
@@ -199,7 +283,7 @@
 			link: eventLink,
 			max: eventMax,
 			att: eventAtt,
-			img: eventImg
+			img: eventImg // This now contains base64 data
 		};
 
 		// Add ID if editing
@@ -212,9 +296,9 @@
 		}
 
 		try {
-			const endpoint = isEditing ? '/api/edit-evene' : '/api/add-event';
+			const endpoint = isEditing ? '/api/edit-event' : '/api/add-event';
 
-			console.log('Sending webinar data:', JSON.stringify(webinarData, null, 2));
+			console.log('Sending webinar data:', { ...webinarData, img: eventImg ? '[BASE64_DATA]' : '' });
 
 			const response = await fetch(endpoint, {
 				method: 'POST',
@@ -431,14 +515,57 @@
 					</div>
 				</div>
 
+				<!-- Image Upload Section -->
 				<div>
-					<p class="mb-1 block text-sm font-medium text-gray-700">Image URL</p>
-					<input
-						type="text"
-						bind:value={eventImg}
-						placeholder="https://example.com/image.jpg"
-						class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-sky-500 focus:ring-sky-500 focus:outline-none"
-					/>
+					<p class="mb-1 block text-sm font-medium text-gray-700">Event Image</p>
+					<div class="flex items-start space-x-4">
+						<div class="flex-1">
+							<label class="flex w-full cursor-pointer flex-col items-center rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center hover:bg-gray-100">
+								<svg class="mb-2 h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+								</svg>
+								<p class="mb-1 text-sm text-gray-500">
+									<span class="font-semibold">Click to upload</span> or drag and drop
+								</p>
+								<p class="text-xs text-gray-500">PNG, JPG or WebP (MAX. 2MB)</p>
+								<input 
+									id="event-image" 
+									type="file" 
+									accept="image/png, image/jpeg, image/webp" 
+									class="hidden" 
+									onchange={handleImageChange}
+								/>
+							</label>
+							<p class="mt-1 text-xs text-gray-500">
+								Recommended size: 800x600 pixels
+							</p>
+						</div>
+						
+						{#if imagePreview}
+							<div class="w-32">
+								<div class="relative">
+									<img 
+										src={imagePreview} 
+										alt="preview" 
+										class="h-24 w-32 rounded-md object-cover border border-gray-200"
+									/>
+									<button 
+										type="button" 
+										class="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-white hover:bg-red-600 w-12 h-12"
+										onclick={() => {
+											imagePreview = '';
+											eventImg = '';
+											imageFile = null;
+											const fileInput = document.getElementById('event-image') as HTMLInputElement;
+											if (fileInput) fileInput.value = '';
+										}}
+									>
+         X
+									</button>
+								</div>
+							</div>
+						{/if}
+					</div>
 				</div>
 
 				<div>
@@ -491,6 +618,7 @@
 					border="border border-gray-200"
 					shadow="shadow-md"
 					hover="hover:shadow-lg transition-all duration-200"
+                    width="w-[98%]"
 				>
 					<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 						<div class="col-span-2">
