@@ -14,7 +14,9 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     });
 
     if (!res.ok) {
-      return new Response('Invalid credentials', { status: 401 });
+      const errorText = await res.text();
+      const realError = JSON.parse(errorText);
+      return new Response(realError.message, { status: 401 });
     }
 
     const data = await res.json();
