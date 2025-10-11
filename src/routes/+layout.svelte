@@ -16,7 +16,7 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="min-h-screen bg-gradient-to-b from-yellow-100 to-sky-100">
+<div class="flex flex-col min-h-dvh bg-gradient-to-b from-yellow-100 to-sky-100">
 	{#if !hideLayout}
 		<Header/>
 	{/if}

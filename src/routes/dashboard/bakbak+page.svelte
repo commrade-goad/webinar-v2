@@ -1,126 +1,124 @@
 <script lang="ts">
  // TODO: Need to finish the admin first!
-	import { onMount } from 'svelte';
-	import Body from '$lib/components/Body.svelte';
-	import Card from '$lib/components/Card.svelte';
+	// import { onMount } from 'svelte';
+	// import Body from '$lib/components/Body.svelte';
+	// import Card from '$lib/components/Card.svelte';
 
-	let liveEvents = $state([]);
-	let upcomingEvents = $state([]);
-	let isLoading = $state(true);
-	let error = $state('');
+	// let liveEvents = $state([]);
+	// let upcomingEvents = $state([]);
+	// let isLoading = $state(true);
+	// let error = $state('');
 
-	let currentDateTime = $state('');
+	// let currentDateTime = $state('');
 
-	// Format date for display
-	function formatDate(dateString: string) {
-		const date = new Date(dateString);
-		return date.toLocaleDateString('id-ID', {
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	}
+	// // Format date for display
+	// function formatDate(dateString: string) {
+	// 	const date = new Date(dateString);
+	// 	return date.toLocaleDateString('id-ID', {
+	// 		year: 'numeric',
+	// 		month: 'long',
+	// 		day: 'numeric',
+	// 		hour: '2-digit',
+	// 		minute: '2-digit'
+	// 	});
+	// }
 
-	// Get current UTC date/time in YYYY-MM-DD HH:MM:SS format
-	function getCurrentDateTime() {
-		const now = new Date();
-		const year = now.getUTCFullYear();
-		const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-		const day = String(now.getUTCDate()).padStart(2, '0');
-		const hours = String(now.getUTCHours()).padStart(2, '0');
-		const minutes = String(now.getUTCMinutes()).padStart(2, '0');
-		const seconds = String(now.getUTCSeconds()).padStart(2, '0');
+	// // Get current UTC date/time in YYYY-MM-DD HH:MM:SS format
+	// function getCurrentDateTime() {
+	// 	const now = new Date();
+	// 	const year = now.getUTCFullYear();
+	// 	const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+	// 	const day = String(now.getUTCDate()).padStart(2, '0');
+	// 	const hours = String(now.getUTCHours()).padStart(2, '0');
+	// 	const minutes = String(now.getUTCMinutes()).padStart(2, '0');
+	// 	const seconds = String(now.getUTCSeconds()).padStart(2, '0');
 		
-		return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-	}
+	// 	return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+	// }
 
-	// Fetch events from API
-	async function fetchEvents() {
-		try {
-			isLoading = true;
-			error = '';
+	// // Fetch events from API
+	// async function fetchEvents() {
+	// 	try {
+	// 		isLoading = true;
+	// 		error = '';
 
-			const response = await fetch('/api/get-event', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					limit: 10,
-					offset: 0
-				})
-			});
+	// 		const response = await fetch('/api/get-event', {
+	// 			method: 'POST',
+	// 			headers: {
+	// 				'Content-Type': 'application/json'
+	// 			},
+	// 			body: JSON.stringify({
+	// 				limit: 10,
+	// 				offset: 0
+	// 			})
+	// 		});
 
-			if (!response.ok) {
-				throw new Error(`Error: ${response.status}`);
-			}
+	// 		if (!response.ok) {
+	// 			throw new Error(`Error: ${response.status}`);
+	// 		}
 
-			const data = await response.json();
-            console.log(data);
+	// 		const data = await response.json();
+    //         console.log(data);
 			
-			const now = new Date();
+	// 		const now = new Date();
 			
-			const events = data.data;
-			liveEvents = events.filter(event => {
-				const startDate = new Date(event.DStart);
-				const endDate = new Date(event.DEnd);
-				return startDate <= now && endDate >= now;
-			});
+	// 		const events = data.data;
+	// 		liveEvents = events.filter(event => {
+	// 			const startDate = new Date(event.DStart);
+	// 			const endDate = new Date(event.DEnd);
+	// 			return startDate <= now && endDate >= now;
+	// 		});
 			
-			upcomingEvents = events.filter(event => {
-				const startDate = new Date(event.DStart);
-				return startDate > now;
-			});
+	// 		upcomingEvents = events.filter(event => {
+	// 			const startDate = new Date(event.DStart);
+	// 			return startDate > now;
+	// 		});
 			
-			// Sort upcoming events by start date
-			upcomingEvents.sort((a, b) => 
-				new Date(a.Dstart).getTime() - new Date(b.DStart).getTime()
-			);
-		} catch (err) {
-			console.error('Error fetching events:', err);
-			error = err instanceof Error ? err.message : 'Failed to fetch events';
-		} finally {
-			isLoading = false;
-		}
-	}
+	// 		// Sort upcoming events by start date
+	// 		upcomingEvents.sort((a, b) => 
+	// 			new Date(a.Dstart).getTime() - new Date(b.DStart).getTime()
+	// 		);
+	// 	} catch (err) {
+	// 		console.error('Error fetching events:', err);
+	// 		error = err instanceof Error ? err.message : 'Failed to fetch events';
+	// 	} finally {
+	// 		isLoading = false;
+	// 	}
+	// }
 
-	// Update current time every second
-	function startClock() {
-		currentDateTime = getCurrentDateTime();
-		const timer = setInterval(() => {
-			currentDateTime = getCurrentDateTime();
-		}, 1000);
+	// // Update current time every second
+	// function startClock() {
+	// 	currentDateTime = getCurrentDateTime();
+	// 	const timer = setInterval(() => {
+	// 		currentDateTime = getCurrentDateTime();
+	// 	}, 1000);
 		
-		return () => clearInterval(timer);
-	}
+	// 	return () => clearInterval(timer);
+	// }
 
-	// Fetch data when component mounts
-	onMount(() => {
-		const cleanup = startClock();
-		fetchEvents();
+	// // Fetch data when component mounts
+	// onMount(() => {
+	// 	const cleanup = startClock();
+	// 	fetchEvents();
 		
-		// Optional: Set up polling to refresh events periodically
-		// Uncomment if you want to automatically refresh events every minute
-		/*
-		const eventRefreshTimer = setInterval(() => {
-			fetchEvents();
-		}, 60000); // Refresh every minute
+	// 	// Optional: Set up polling to refresh events periodically
+	// 	// Uncomment if you want to automatically refresh events every minute
+	// 	/*
+	// 	const eventRefreshTimer = setInterval(() => {
+	// 		fetchEvents();
+	// 	}, 60000); // Refresh every minute
 		
-		return () => {
-			cleanup();
-			clearInterval(eventRefreshTimer);
-		};
-		*/
+	// 	return () => {
+	// 		cleanup();
+	// 		clearInterval(eventRefreshTimer);
+	// 	};
+	// 	*/
 		
-		return cleanup;
-	});
+	// 	return cleanup;
+	// });
 </script>
 
 <Body>
-
-	<!-- Loading state -->
 	{#if isLoading}
 		<div class="flex justify-center py-8">
 			<div class="animate-spin h-8 w-8 border-4 border-sky-500 rounded-full border-t-transparent"></div>
@@ -130,7 +128,6 @@
 			<p class="text-red-600">Error loading events: {error}</p>
 		</Card>
 	{:else}
-		<!-- Live Webinars Section -->
 		<h1 class="text-2xl font-bold text-sky-600 mb-4">Live Webinar</h1>
 		
 		{#if liveEvents.data.length === 0}

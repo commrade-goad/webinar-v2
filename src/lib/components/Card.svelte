@@ -6,7 +6,7 @@
   export let rounded: string = "rounded-xl"; // Customizable border radius
   export let shadow: string = "shadow-md shadow-blue-100"; // Customizable shadow
   export let border: string = "border border-white/70"; // Customizable border
-  export let bgColor: string = "bg-white/60"; // Background color
+  export let bgColor: string = "bg-white/40"; // Background color
   export let width: string = "w-full"; // Width of the card
   export let height: string = "h-auto"; // Width of the card
   export let hover: string = ""; // Optional hover effects

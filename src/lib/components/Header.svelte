@@ -10,8 +10,8 @@
 		const admin = user?.admin === 1;
 		navLinks = [
 			{ name: 'Dashboard', href: '/dashboard' },
-			{ name: 'Profile', href: '/profile' },
-			{ name: 'History', href: '/history' },
+			{ name: 'Profil', href: '/profile' },
+			{ name: 'Webinar', href: '/history' },
 			...(admin ? [{ name: 'Admin', href: '/admin' }] : [])
 		];
 	});
