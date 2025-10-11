@@ -12,11 +12,6 @@
 		{ name: 'Profile', href: '/profile' }
 	];
 
-	const handleLogout = () => {
-		// TODO: Handle cookie deletion
-		goto('/login');
-	};
-
 	const hiddenRoutes = ['/land', '/login', '/register'];
 	const pathname = $derived(page.url.pathname);
 	const hideLayout = $derived(hiddenRoutes.includes(pathname));

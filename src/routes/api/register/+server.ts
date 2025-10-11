@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
+export const POST: RequestHandler = async ({ request }) => {
   try {
     const body = await request.json();
 
@@ -17,15 +17,6 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
       const errorText = await res.text();
       return new Response(errorText, { status: 401 });
     }
-
-    const data = await res.json();
-
-    cookies.set('user', data.token, {
-      path: '/',
-      httpOnly: true,
-      secure: false,
-      maxAge: 60 * 60 * 24
-    });
 
     return new Response('ok', { status: 200 });
   } catch (err) {
