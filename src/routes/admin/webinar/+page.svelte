@@ -9,7 +9,7 @@
 	let webinars = $state<IEvent[]>([]);
 	let isLoading = $state(true);
 	let error = $state('');
-    let refresh = false;
+    let refresh = $state(0);
 
 	// Form state
 	let isFormOpen = $state(false);
@@ -31,6 +31,12 @@
 
 	// Current date/time and user info
 	let currentDateTime = $state('');
+
+	$effect(() => {
+		if (refresh> 0) {
+			fetchWebinars();
+		}
+	});
 
 	// Get current UTC date/time in YYYY-MM-DD HH:MM:SS format
 	function updateCurrentDateTime() {
@@ -206,14 +212,14 @@
 		}
 
 		try {
-			const endpoint = isEditing ? '/api/update-event' : '/api/add-event';
+			const endpoint = isEditing ? '/api/edit-evene' : '/api/add-event';
 
 			console.log('Sending webinar data:', JSON.stringify(webinarData, null, 2));
 
 			const response = await fetch(endpoint, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(webinarData)
+				body: JSON.stringify(isEditing ? edit : webinarData)
 			});
 
 			if (!response.ok) {
@@ -227,8 +233,7 @@
 				throw new Error(apiResponse.message || `Error code: ${apiResponse.error_code}`);
 			}
 
-			// Refresh webinar list
-			await fetchWebinars();
+            refresh += 1;
 
 			// Close form
 			closeForm();
@@ -248,7 +253,7 @@
 		}
 
 		try {
-			const response = await fetch('/api/delete-event', {
+			const response = await fetch('/api/del-event', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ id })
@@ -265,11 +270,8 @@
 				throw new Error(apiResponse.message || `Error code: ${apiResponse.error_code}`);
 			}
 
-			// Refresh webinar list
-            refresh = true;
-			// await fetchWebinars();
+            refresh += 1;
 
-			// Show success message (you could add a toast notification here)
 			console.log('Webinar deleted successfully');
 		} catch (err) {
 			console.error('Error deleting webinar:', err);
@@ -288,7 +290,6 @@
 		}, 1000);
 
 		return () => clearInterval(timer);
-        refresh = false;
 	});
 </script>
 
