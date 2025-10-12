@@ -9,7 +9,19 @@
 	let webinars = $state<IEvent[]>([]);
 	let isLoading = $state(true);
 	let error = $state('');
-    let refresh = $state(0);
+	let refresh = $state(0);
+
+	// Search and filter states
+	let searchQuery = $state('');
+	let sortBy = $state('date'); // 'date', 'name'
+	let filterStatus = $state('all'); // 'all', 'live', 'upcoming', 'ended'
+	let filterType = $state('all'); // 'all', 'online', 'offline'
+
+	// Pagination states
+	let pageSize = $state(10);
+	let currentPage = $state(1);
+	let totalItems = $state(0);
+	let totalPages = $state(1);
 
 	// Form state
 	let isFormOpen = $state(false);
@@ -35,7 +47,16 @@
 	let currentDateTime = $state('');
 
 	$effect(() => {
-		if (refresh> 0) {
+		if (refresh > 0 || currentPage > 0) {
+			fetchWebinars();
+		}
+	});
+
+	// Effect for when search/filter changes - reset to page 1
+	$effect(() => {
+		// Reset to page 1 when search/filters change
+		if (searchQuery !== '' || sortBy !== 'date' || filterStatus !== 'all' || filterType !== 'all') {
+			currentPage = 1;
 			fetchWebinars();
 		}
 	});
@@ -70,7 +91,9 @@
 		const systemZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 		const dt = DateTime.fromISO(`${dateString}T${timeString}`, { zone: systemZone });
 
-        console.log(`got ${dateString}T${timeString} generate ${dt.toUTC().toFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")}`)
+		console.log(
+			`got ${dateString}T${timeString} generate ${dt.toUTC().toFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")}`
+		);
 		return dt.toUTC().toFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
 	}
 
@@ -102,7 +125,7 @@
 		}
 
 		const file = target.files[0];
-		
+
 		// Check file type
 		const validTypes = ['image/png', 'image/jpeg', 'image/webp'];
 		if (!validTypes.includes(file.type)) {
@@ -119,10 +142,10 @@
 		}
 
 		imageFile = file;
-		
+
 		// Create preview
 		imagePreview = URL.createObjectURL(file);
-		
+
 		// Convert to base64
 		try {
 			const base64Data = await fileToBase64(file);
@@ -135,12 +158,12 @@
 				throw new Error(`Error: ${response.status}`);
 			}
 
-			const apiResponse: ApiResponse<{filename: string}> = await response.json();
+			const apiResponse: ApiResponse<{ filename: string }> = await response.json();
 
 			if (!apiResponse.success) {
 				throw new Error(apiResponse.message || 'Failed to fetch webinars');
 			}
-            
+
 			eventImg = apiResponse.data.filename;
 		} catch (err) {
 			console.error('Error converting image to base64:', err);
@@ -154,7 +177,7 @@
 			const reader = new FileReader();
 			reader.readAsDataURL(file);
 			reader.onload = () => resolve(reader.result as string);
-			reader.onerror = error => reject(error);
+			reader.onerror = (error) => reject(error);
 		});
 	}
 
@@ -202,7 +225,7 @@
 		eventLink = webinar.EventLink || '';
 		eventMax = webinar.EventMax || 100;
 		eventAtt = webinar.EventAtt || 'online';
-		
+
 		// Set image if available
 		if (webinar.EventImg) {
 			imagePreview = webinar.EventImg;
@@ -211,7 +234,7 @@
 			imagePreview = '';
 			eventImg = '';
 		}
-		
+
 		currentWebinarId = webinar.ID;
 
 		// Open form in edit mode
@@ -223,46 +246,104 @@
 	function closeForm() {
 		isFormOpen = false;
 		resetForm();
-		
+
 		// Clear any file input
 		const fileInput = document.getElementById('event-image') as HTMLInputElement;
 		if (fileInput) fileInput.value = '';
 	}
 
-	// Fetch all webinars
+	// Function to construct URL with query parameters
+	const createSearchParams = () => {
+		return {
+			limit: pageSize,
+			offset: (currentPage - 1) * pageSize,
+			search: searchQuery || undefined,
+			sort: sortBy !== 'date' ? sortBy : undefined,
+			status: filterStatus !== 'all' ? filterStatus : undefined,
+			type: filterType !== 'all' ? filterType : undefined
+		};
+	};
+
+	// Fetch webinars with search, filtering and pagination
 	async function fetchWebinars() {
 		try {
 			isLoading = true;
 			error = '';
 
-			const response = await fetch('/api/get-event', {
+			// Use new search API with POST method
+			const response = await fetch('/api/search-event', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ limit: 100, offset: 0 })
+				body: JSON.stringify(createSearchParams())
 			});
 
 			if (!response.ok) {
 				throw new Error(`Error: ${response.status}`);
 			}
 
-			const apiResponse: ApiResponse<IEvent[]> = await response.json();
+			const apiResponse: ApiResponse<{ events: IEvent[]; total: number }> = await response.json();
 
 			if (!apiResponse.success) {
 				throw new Error(apiResponse.message || 'Failed to fetch webinars');
 			}
 
-			webinars = apiResponse.data || [];
-
-			// Sort by start date (newest first)
-			webinars.sort(
-				(a, b) => new Date(b.EventDStart).getTime() - new Date(a.EventDStart).getTime()
-			);
+			webinars = apiResponse.data.events || [];
+			totalItems = apiResponse.data.total || 0;
+			totalPages = Math.ceil(totalItems / pageSize);
 		} catch (err) {
 			console.error('Error fetching webinars:', err);
 			error = err instanceof Error ? err.message : 'Failed to fetch webinars';
 		} finally {
 			isLoading = false;
 		}
+	}
+
+	// Navigation functions for pagination
+	function goToPage(page: number) {
+		if (page < 1 || page > totalPages || page === currentPage) return;
+		currentPage = page;
+		fetchWebinars();
+	}
+
+	// Helper function to create array of page numbers for pagination
+	function getPageNumbers(): (number | string)[] {
+		const pageNumbers: (number | string)[] = [];
+		const maxDisplayedPages = 5;
+
+		if (totalPages <= maxDisplayedPages) {
+			// If total pages is small, show all pages
+			for (let i = 1; i <= totalPages; i++) {
+				pageNumbers.push(i);
+			}
+		} else {
+			// Always show first page
+			pageNumbers.push(1);
+
+			if (currentPage > 3) {
+				// Show ellipsis if current page is far from start
+				pageNumbers.push('...');
+			}
+
+			// Show pages around current page
+			const startPage = Math.max(2, currentPage - 1);
+			const endPage = Math.min(totalPages - 1, currentPage + 1);
+
+			for (let i = startPage; i <= endPage; i++) {
+				pageNumbers.push(i);
+			}
+
+			if (currentPage < totalPages - 2) {
+				// Show ellipsis if current page is far from end
+				pageNumbers.push('...');
+			}
+
+			// Always show last page
+			if (totalPages > 1) {
+				pageNumbers.push(totalPages);
+			}
+		}
+
+		return pageNumbers;
 	}
 
 	// Submit form (add or edit)
@@ -283,7 +364,7 @@
 			link: eventLink,
 			max: eventMax,
 			att: eventAtt,
-			img: eventImg // This now contains base64 data
+			img: eventImg
 		};
 
 		// Add ID if editing
@@ -298,7 +379,10 @@
 		try {
 			const endpoint = isEditing ? '/api/edit-event' : '/api/add-event';
 
-			console.log('Sending webinar data:', { ...webinarData, img: eventImg ? '[BASE64_DATA]' : '' });
+			console.log('Sending webinar data:', {
+				...webinarData,
+				img: eventImg ? '[BASE64_DATA]' : ''
+			});
 
 			const response = await fetch(endpoint, {
 				method: 'POST',
@@ -317,7 +401,7 @@
 				throw new Error(apiResponse.message || `Error code: ${apiResponse.error_code}`);
 			}
 
-            refresh += 1;
+			refresh += 1;
 
 			// Close form
 			closeForm();
@@ -354,7 +438,7 @@
 				throw new Error(apiResponse.message || `Error code: ${apiResponse.error_code}`);
 			}
 
-            refresh += 1;
+			refresh += 1;
 
 			console.log('Webinar deleted successfully');
 		} catch (err) {
@@ -379,9 +463,9 @@
 
 <Body>
 	<div class="mb-6 flex items-center justify-between">
-		<h1 class="text-2xl font-bold text-sky-600">Webinar Management</h1>
+		<h1 class="text-2xl font-bold text-sky-600">Manajement Webinar</h1>
 		<button
-			class="flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-white transition-colors hover:bg-sky-700"
+			class="flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-white transition-colors hover:bg-sky-700"
 			onclick={openAddForm}
 		>
 			<svg
@@ -396,8 +480,81 @@
 					clip-rule="evenodd"
 				/>
 			</svg>
-			Add Webinar
+			Tambahkan Webinar
 		</button>
+	</div>
+
+	<!-- Items per page control -->
+	<div class="mb-2 flex items-center text-sm text-black-500">
+		<span class="ml-auto"
+			>Webinar per halaman:
+			<select
+				bind:value={pageSize}
+				onchange={() => {
+					currentPage = 1;
+					fetchWebinars();
+				}}
+				class="ml-2 rounded border border-gray-300 px-2 py-1"
+			>
+				<option value={5}>5</option>
+				<option value={10}>10</option>
+				<option value={20}>20</option>
+				<option value={50}>50</option>
+			</select>
+		</span>
+	</div>
+
+	<!-- Search and Filter Controls -->
+	<div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+		<div>
+			<p class="mb-1 block text-sm font-medium text-gray-700">Cari</p>
+			<input
+				type="text"
+				bind:value={searchQuery}
+				placeholder="Cari dengan nama atau pembicara..."
+				class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-sky-500 focus:ring-sky-500 focus:outline-none"
+				onkeyup={(e) => e.key === 'Enter' && fetchWebinars()}
+			/>
+		</div>
+
+		<div>
+			<p class="mb-1 block text-sm font-medium text-gray-700">Urutkan</p>
+			<select
+				bind:value={sortBy}
+				onchange={fetchWebinars}
+				class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-sky-500 focus:ring-sky-500 focus:outline-none"
+			>
+				<option value="date">Tanggal (Paling baru pertama)</option>
+				<option value="name">Nama (A-Z)</option>
+			</select>
+		</div>
+
+		<div>
+			<p class="mb-1 block text-sm font-medium text-gray-700">Status</p>
+			<select
+				bind:value={filterStatus}
+				onchange={fetchWebinars}
+				class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-sky-500 focus:ring-sky-500 focus:outline-none"
+			>
+				<option value="all">Semua</option>
+				<option value="live">Berjalan</option>
+				<option value="upcoming">Belum dimulai</option>
+				<option value="ended">Selesai</option>
+			</select>
+		</div>
+
+		<div>
+			<p class="mb-1 block text-sm font-medium text-gray-700">Tipe</p>
+			<select
+				bind:value={filterType}
+				onchange={fetchWebinars}
+				class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-sky-500 focus:ring-sky-500 focus:outline-none"
+			>
+				<option value="all">Semua</option>
+				<option value="online">Online</option>
+				<option value="offline">Offline</option>
+			</select>
+		</div>
 	</div>
 
 	<!-- Error message -->
@@ -410,15 +567,16 @@
 	<!-- Webinar Form Card -->
 	{#if isFormOpen}
 		<Card
-			title={isEditing ? 'Edit Webinar' : 'Add New Webinar'}
+			title={isEditing ? 'Perbarui Webinar' : 'Tambahkan Webinar'}
 			padding="p-6"
 			bgColor="bg-white"
 			shadow="shadow-lg"
 			border="border-2 border-sky-100"
+			width="w-[98.5%]"
 		>
 			<form onsubmit={handleSubmit} class="space-y-4">
 				<div>
-					<p class="mb-1 block text-sm font-medium text-gray-700">Event Name</p>
+					<p class="mb-1 block text-sm font-medium text-gray-700">Nama Webinar</p>
 					<input
 						type="text"
 						bind:value={eventName}
@@ -428,7 +586,7 @@
 				</div>
 
 				<div>
-					<p class="mb-1 block text-sm font-medium text-gray-700">Speaker</p>
+					<p class="mb-1 block text-sm font-medium text-gray-700">Pembicara</p>
 					<input
 						type="text"
 						bind:value={eventSpeaker}
@@ -438,7 +596,7 @@
 
 				<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 					<div>
-						<p class="mb-1 block text-sm font-medium text-gray-700">Start Date</p>
+						<p class="mb-1 block text-sm font-medium text-gray-700">Tanggal mulai</p>
 						<input
 							type="date"
 							bind:value={eventDstart}
@@ -448,7 +606,7 @@
 					</div>
 
 					<div>
-						<p class="mb-1 block text-sm font-medium text-gray-700">Start Time</p>
+						<p class="mb-1 block text-sm font-medium text-gray-700">Waktu mulai</p>
 						<input
 							type="time"
 							bind:value={eventTimeStart}
@@ -460,7 +618,7 @@
 
 				<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 					<div>
-						<p class="mb-1 block text-sm font-medium text-gray-700">End Date</p>
+						<p class="mb-1 block text-sm font-medium text-gray-700">Tanggal akhir</p>
 						<input
 							type="date"
 							bind:value={eventDend}
@@ -470,7 +628,7 @@
 					</div>
 
 					<div>
-						<p class="mb-1 block text-sm font-medium text-gray-700">End Time</p>
+						<p class="mb-1 block text-sm font-medium text-gray-700">Waktu akhir</p>
 						<input
 							type="time"
 							bind:value={eventTimeEnd}
@@ -481,18 +639,18 @@
 				</div>
 
 				<div>
-					<p class="mb-1 block text-sm font-medium text-gray-700">Event Link</p>
+					<p class="mb-1 block text-sm font-medium text-gray-700">Link meeting atau tempat</p>
 					<input
 						type="text"
 						bind:value={eventLink}
-						placeholder="https://meet.google.com/..."
+						placeholder="https://meet.google.com/... atau UKDC VL3"
 						class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-sky-500 focus:ring-sky-500 focus:outline-none"
 					/>
 				</div>
 
 				<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 					<div>
-						<p class="mb-1 block text-sm font-medium text-gray-700">Maximum Participants</p>
+						<p class="mb-1 block text-sm font-medium text-gray-700">Partisipan maximal</p>
 						<input
 							type="number"
 							bind:value={eventMax}
@@ -503,7 +661,7 @@
 					</div>
 
 					<div>
-						<p class="mb-1 block text-sm font-medium text-gray-700">Event Type</p>
+						<p class="mb-1 block text-sm font-medium text-gray-700">Tipe Webinar</p>
 						<select
 							bind:value={eventAtt}
 							class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-sky-500 focus:ring-sky-500 focus:outline-none"
@@ -517,41 +675,51 @@
 
 				<!-- Image Upload Section -->
 				<div>
-					<p class="mb-1 block text-sm font-medium text-gray-700">Event Image</p>
+					<p class="mb-1 block text-sm font-medium text-gray-700">Poster Webinar</p>
 					<div class="flex items-start space-x-4">
 						<div class="flex-1">
-							<label class="flex w-full cursor-pointer flex-col items-center rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center hover:bg-gray-100">
-								<svg class="mb-2 h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+							<label
+								class="flex w-full cursor-pointer flex-col items-center rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center hover:bg-gray-100"
+							>
+								<svg
+									class="mb-2 h-8 w-8 text-gray-400"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+									xmlns="http://www.w3.org/2000/svg"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+									></path>
 								</svg>
 								<p class="mb-1 text-sm text-gray-500">
-									<span class="font-semibold">Click to upload</span> or drag and drop
+									<span class="font-semibold">Tekan untuk upload</span> atau drag and drop
 								</p>
 								<p class="text-xs text-gray-500">PNG, JPG or WebP (MAX. 2MB)</p>
-								<input 
-									id="event-image" 
-									type="file" 
-									accept="image/png, image/jpeg, image/webp" 
-									class="hidden" 
+								<input
+									id="event-image"
+									type="file"
+									accept="image/png, image/jpeg, image/webp"
+									class="hidden"
 									onchange={handleImageChange}
 								/>
 							</label>
-							<p class="mt-1 text-xs text-gray-500">
-								Recommended size: 800x600 pixels
-							</p>
 						</div>
-						
+
 						{#if imagePreview}
 							<div class="w-32">
 								<div class="relative">
-									<img 
-										src={imagePreview} 
-										alt="preview" 
-										class="h-24 w-32 rounded-md object-cover border border-gray-200"
+									<img
+										src={imagePreview}
+										alt="preview"
+										class="h-24 w-32 rounded-md border border-gray-200 object-cover"
 									/>
-									<button 
-										type="button" 
-										class="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-white hover:bg-red-600 w-12 h-12"
+									<button
+										type="button"
+										class="absolute -top-2 -right-2 h-12 w-12 rounded-full bg-red-500 p-1 text-white hover:bg-red-600"
 										onclick={() => {
 											imagePreview = '';
 											eventImg = '';
@@ -560,7 +728,7 @@
 											if (fileInput) fileInput.value = '';
 										}}
 									>
-         X
+										X
 									</button>
 								</div>
 							</div>
@@ -569,7 +737,7 @@
 				</div>
 
 				<div>
-					<p class="mb-1 block text-sm font-medium text-gray-700">Description</p>
+					<p class="mb-1 block text-sm font-medium text-gray-700">Deskripsi</p>
 					<textarea
 						bind:value={eventDesc}
 						rows="4"
@@ -583,13 +751,13 @@
 						onclick={closeForm}
 						class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:ring-2 focus:ring-sky-500 focus:outline-none"
 					>
-						Cancel
+						Batalkan
 					</button>
 					<button
 						type="submit"
 						class="rounded-md border border-transparent bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-sky-700 focus:ring-2 focus:ring-sky-500 focus:outline-none"
 					>
-						{isEditing ? 'Update Webinar' : 'Create Webinar'}
+						{isEditing ? 'Update Webinar' : 'Buat Webinar'}
 					</button>
 				</div>
 			</form>
@@ -606,19 +774,27 @@
 		<!-- Webinar list -->
 	{:else if webinars.length === 0}
 		<Card padding="p-6" bgColor="bg-gray-50">
-			<p class="text-center text-gray-500">No webinars found. Click "Add Webinar" to create one.</p>
+			<p class="text-center text-gray-500">
+				{totalItems === 0
+					? 'Webinar tidak ditemukan. Tekan "Tambah Webinar" untuk memulai.'
+					: 'Tidak ada webinar sesuai kriteria.'}
+			</p>
 		</Card>
 	{:else}
+		<div class="mb-2 text-sm text-gray-500">
+			Menampilkan {webinars.length} webinar (halaman {currentPage} dari {totalPages}, total: {totalItems})
+		</div>
+
 		<div class="grid grid-cols-1 gap-4">
 			{#each webinars as webinar}
 				<Card
 					title={webinar.EventName}
-					subtitle={webinar.EventSpeaker ? `Speaker: ${webinar.EventSpeaker}` : undefined}
+					subtitle={webinar.EventSpeaker ? `Pembicara: ${webinar.EventSpeaker}` : undefined}
 					padding="p-5"
 					border="border border-gray-200"
 					shadow="shadow-md"
 					hover="hover:shadow-lg transition-all duration-200"
-                    width="w-[98%]"
+					width="w-[98.5%]"
 				>
 					<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 						<div class="col-span-2">
@@ -632,29 +808,22 @@
 								{/if}
 								<div>
 									<p class="mb-2 text-sm">
-										<strong>Start:</strong>
+										<strong>Mulai:</strong>
 										{formatDate(webinar.EventDStart)}
 									</p>
-									<p class="mb-2 text-sm"><strong>End:</strong> {formatDate(webinar.EventDEnd)}</p>
+									<p class="mb-2 text-sm"><strong>Berakhir:</strong> {formatDate(webinar.EventDEnd)}</p>
 									<p class="mb-2 text-sm">
-										<strong>Type:</strong>
+										<strong>Tipe:</strong>
 										{webinar.EventAtt === 'online' ? 'Online' : 'Offline'}
 									</p>
 									<p class="mb-2 text-sm">
-										<strong>Max Participants:</strong>
+										<strong>Partisipasi maximal:</strong>
 										{webinar.EventMax}
 									</p>
 									{#if webinar.EventLink}
 										<p class="mb-2 text-sm">
-											<strong>Link:</strong>
-											<a
-												href={webinar.EventLink}
-												target="_blank"
-												rel="noopener noreferrer"
-												class="text-sky-600 hover:underline"
-											>
-												Join Webinar
-											</a>
+											<strong>Link/Tempat:</strong>
+												{webinar.EventLink}
 										</p>
 									{/if}
 								</div>
@@ -663,20 +832,13 @@
 							{#if webinar.EventDesc}
 								<p class="mt-2 text-sm text-gray-600">{webinar.EventDesc}</p>
 							{/if}
-
-							{#if webinar.EventParticipants && webinar.EventParticipants.length > 0}
-								<p class="mt-2 text-sm">
-									<strong>Current Participants:</strong>
-									{webinar.EventParticipants.length} / {webinar.EventMax}
-								</p>
-							{/if}
 						</div>
 
 						<div class="flex flex-col justify-between gap-2 md:items-end">
 							<div class="flex gap-2">
 								<button
 									onclick={() => openEditForm(webinar)}
-									class="flex items-center gap-1 rounded bg-amber-500 px-3 py-1.5 text-white transition-colors hover:bg-amber-600"
+									class="flex items-center gap-1 rounded-lg bg-sky-600 px-3 py-1.5 text-white transition-colors hover:bg-sky-700"
 								>
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
@@ -691,8 +853,14 @@
 									Edit
 								</button>
 								<button
+									onclick={() => alert("Halaman webinar belum diimplementasi")}
+									class="flex items-center gap-1 rounded-lg bg-sky-600 px-3 py-1.5 text-white transition-colors hover:bg-sky-700"
+								>
+								Halaman Webinar
+								</button>
+								<button
 									onclick={() => deleteWebinar(webinar.ID)}
-									class="flex items-center gap-1 rounded bg-red-500 px-3 py-1.5 text-white transition-colors hover:bg-red-600"
+									class="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-1.5 text-white transition-colors hover:bg-red-600"
 								>
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
@@ -706,12 +874,12 @@
 											clip-rule="evenodd"
 										/>
 									</svg>
-									Delete
+									Hapus
 								</button>
 							</div>
 
 							<span
-								class={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+								class={`p-1 rounded-xl px-2.5 py-0.5 text-xs font-medium ${
 									new Date(webinar.EventDStart) <= new Date() &&
 									new Date(webinar.EventDEnd) >= new Date()
 										? 'bg-green-100 text-green-800'
@@ -722,23 +890,76 @@
 							>
 								{new Date(webinar.EventDStart) <= new Date() &&
 								new Date(webinar.EventDEnd) >= new Date()
-									? 'Live'
+									? 'Berjalan'
 									: new Date(webinar.EventDStart) > new Date()
-										? 'Upcoming'
-										: 'Ended'}
+										? 'Belum dimulai'
+										: 'Selesai'}
 							</span>
-
-							{#if webinar.EventMaterials && webinar.EventMaterials.length > 0}
-								<span
-									class="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800"
-								>
-									{webinar.EventMaterials.length} Materials
-								</span>
-							{/if}
 						</div>
 					</div>
 				</Card>
 			{/each}
 		</div>
+
+		<!-- Pagination -->
+		{#if totalPages > 1}
+			<div class="mt-6 flex justify-center">
+				<div class="flex gap-1">
+					<!-- First page -->
+					<button
+						class="rounded border border-gray-300 px-3 py-1 text-sm disabled:opacity-50"
+						disabled={currentPage === 1}
+						onclick={() => goToPage(1)}
+					>
+						&laquo;
+					</button>
+
+					<!-- Previous page -->
+					<button
+						class="rounded border border-gray-300 px-3 py-1 text-sm disabled:opacity-50"
+						disabled={currentPage === 1}
+						onclick={() => goToPage(currentPage - 1)}
+					>
+						&lsaquo;
+					</button>
+
+					<!-- Page numbers -->
+					{#each getPageNumbers() as pageNum}
+						{#if typeof pageNum === 'number'}
+							<button
+								class={`rounded px-3 py-1 text-sm ${
+									pageNum === currentPage
+										? 'bg-sky-600 text-white'
+										: 'border border-gray-300 hover:bg-gray-100'
+								}`}
+								onclick={() => goToPage(pageNum)}
+							>
+								{pageNum}
+							</button>
+						{:else}
+							<span class="px-2 py-1 text-sm">...</span>
+						{/if}
+					{/each}
+
+					<!-- Next page -->
+					<button
+						class="rounded border border-gray-300 px-3 py-1 text-sm disabled:opacity-50"
+						disabled={currentPage === totalPages}
+						onclick={() => goToPage(currentPage + 1)}
+					>
+						&rsaquo;
+					</button>
+
+					<!-- Last page -->
+					<button
+						class="rounded border border-gray-300 px-3 py-1 text-sm disabled:opacity-50"
+						disabled={currentPage === totalPages}
+						onclick={() => goToPage(totalPages)}
+					>
+						&raquo;
+					</button>
+				</div>
+			</div>
+		{/if}
 	{/if}
 </Body>
