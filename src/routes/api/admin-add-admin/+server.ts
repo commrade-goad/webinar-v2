@@ -10,7 +10,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
     const body = await request.json();
     
-    const url = `${env.PRIVATE_API_URL}/api/protected/event-del`;
+    const url = `${env.PRIVATE_API_URL}/api/protected/register-admin`;
     
     console.log("Sending request to:", url);
     
@@ -25,7 +25,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
     if (!res.ok) {
       const errorText = await res.text();
-      return new Response(`Failed to delete webinar: ${errorText}`, { status: res.status });
+      return new Response(`Failed to delete user: ${errorText}`, { status: res.status });
     }
 
     const responseData = await res.text();

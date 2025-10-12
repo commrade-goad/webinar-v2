@@ -749,13 +749,13 @@
 					<button
 						type="button"
 						onclick={closeForm}
-						class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+						class="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:ring-2 focus:ring-sky-500 focus:outline-none"
 					>
 						Batalkan
 					</button>
 					<button
 						type="submit"
-						class="rounded-md border border-transparent bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-sky-700 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+						class="rounded-xl border border-transparent bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-sky-700 focus:ring-2 focus:ring-sky-500 focus:outline-none"
 					>
 						{isEditing ? 'Update Webinar' : 'Buat Webinar'}
 					</button>
@@ -838,7 +838,7 @@
 							<div class="flex gap-2">
 								<button
 									onclick={() => openEditForm(webinar)}
-									class="flex items-center gap-1 rounded-lg bg-sky-600 px-3 py-1.5 text-white transition-colors hover:bg-sky-700"
+									class="flex items-center gap-1 rounded-xl bg-sky-600 px-3 py-1.5 text-white transition-colors hover:bg-sky-700"
 								>
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
@@ -854,13 +854,13 @@
 								</button>
 								<button
 									onclick={() => alert("Halaman webinar belum diimplementasi")}
-									class="flex items-center gap-1 rounded-lg bg-sky-600 px-3 py-1.5 text-white transition-colors hover:bg-sky-700"
+									class="flex items-center gap-1 rounded-xl bg-sky-600 px-3 py-1.5 text-white transition-colors hover:bg-sky-700"
 								>
 								Halaman Webinar
 								</button>
 								<button
 									onclick={() => deleteWebinar(webinar.ID)}
-									class="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-1.5 text-white transition-colors hover:bg-red-600"
+									class="flex items-center gap-1 rounded-xl bg-red-500 px-3 py-1.5 text-white transition-colors hover:bg-red-600"
 								>
 									<svg
 										xmlns="http://www.w3.org/2000/svg"

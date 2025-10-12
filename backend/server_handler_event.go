@@ -624,3 +624,115 @@ func appHandleEventCount(backend *Backend, route fiber.Router) {
 		})
 	})
 }
+
+// GET : api/protected/event-search
+func appHandleEventSearch(backend *Backend, route fiber.Router) {
+	route.Get("event-search", func(c *fiber.Ctx) error {
+		claims, err := GetJWT(c)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success":    false,
+				"message":    "Invalid JWT token.",
+				"error_code": 1,
+				"data":       nil,
+			})
+		}
+
+		email := claims["email"].(string)
+		if email == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"success":    false,
+				"message":    "Not logged in.",
+				"error_code": 2,
+				"data":       nil,
+			})
+		}
+
+		// Get query parameters
+		offsetQuery := c.Query("offset", "0")
+		limitQuery := c.Query("limit", "10")
+		searchQuery := c.Query("search", "")
+		sortBy := c.Query("sort", "date")   // "date" or "name"
+		status := c.Query("status", "all")  // "all", "live", "upcoming", "ended"
+		eventType := c.Query("type", "all") // "all", "online", "offline"
+
+		// Convert limit and offset to integers
+		offset, err := strconv.Atoi(offsetQuery)
+		if err != nil {
+			offset = 0
+		}
+		limit, err := strconv.Atoi(limitQuery)
+		if err != nil {
+			limit = 10
+		}
+
+		// Build the query
+		query := backend.db.Model(&table.Event{})
+
+		// Apply search if provided
+		if searchQuery != "" {
+			query = query.Where("event_name LIKE ? OR event_desc LIKE ? OR event_speaker LIKE ?",
+				"%"+searchQuery+"%", "%"+searchQuery+"%", "%"+searchQuery+"%")
+		}
+
+		// Apply status filter
+		now := time.Now()
+		switch status {
+		case "live":
+			query = query.Where("event_dstart <= ? AND event_dend >= ?", now, now)
+		case "upcoming":
+			query = query.Where("event_dstart > ?", now)
+		case "ended":
+			query = query.Where("event_dend < ?", now)
+		}
+
+		// Apply type filter
+		if eventType != "all" {
+			query = query.Where("event_att = ?", eventType)
+		}
+
+		// Count total matching records (before pagination)
+		var totalCount int64
+		if err := query.Count(&totalCount).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success":    false,
+				"message":    "Failed to count events from db.",
+				"error_code": 3,
+				"data":       nil,
+			})
+		}
+
+		// Apply sorting
+		switch sortBy {
+		case "name":
+			query = query.Order("event_name ASC")
+		default: // "date" is default
+			query = query.Order("event_dstart DESC")
+		}
+
+		// Apply pagination
+		query = query.Offset(offset).Limit(limit)
+
+		// Execute the query
+		var eventData []table.Event
+		if err := query.Find(&eventData).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success":    false,
+				"message":    "Failed to fetch event data from db.",
+				"error_code": 4,
+				"data":       nil,
+			})
+		}
+
+		// Return results with total count
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"success":    true,
+			"message":    "Check data.",
+			"error_code": 0,
+			"data": fiber.Map{
+				"events": eventData,
+				"total":  totalCount,
+			},
+		})
+	})
+}

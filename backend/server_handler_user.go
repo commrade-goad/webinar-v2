@@ -1126,3 +1126,100 @@ func appHandleUserRegistered(backend *Backend, route fiber.Router) {
 		})
 	})
 }
+
+// GET : api/protected/user-search
+func appHandleUserSearch(backend *Backend, route fiber.Router) {
+	route.Get("user-search", func(c *fiber.Ctx) error {
+		claims, err := GetJWT(c)
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"success":    false,
+				"message":    "Invalid JWT token.",
+				"error_code": 1,
+				"data":       nil,
+			})
+		}
+
+		admin := claims["admin"].(float64)
+		if admin != 1 {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"success":    false,
+				"message":    "Invalid credentials to access this api.",
+				"error_code": 2,
+				"data":       nil,
+			})
+		}
+
+		// Get query parameters
+		limitQuery := c.Query("limit", "10")
+		offsetQuery := c.Query("offset", "0")
+		searchQuery := c.Query("search", "")
+		sortQuery := c.Query("sort", "name") // "name" or "email" or "date"
+
+		// Parse integers
+		limit, err := strconv.Atoi(limitQuery)
+		if err != nil || limit <= 0 {
+			limit = 10
+		}
+
+		offset, err := strconv.Atoi(offsetQuery)
+		if err != nil {
+			offset = 0
+		}
+
+		// Build the query
+		query := backend.db.Model(&table.User{})
+
+		// Apply search if provided
+		if searchQuery != "" {
+			query = query.Where("user_full_name LIKE ? OR user_email LIKE ? OR user_instance LIKE ?",
+				"%"+searchQuery+"%", "%"+searchQuery+"%", "%"+searchQuery+"%")
+		}
+
+		// Count total matching records (before pagination)
+		var totalCount int64
+		if err := query.Count(&totalCount).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success":    false,
+				"message":    "Failed to count users from db.",
+				"error_code": 4,
+				"data":       nil,
+			})
+		}
+
+		// Apply sorting
+		switch sortQuery {
+		case "email":
+			query = query.Order("user_email ASC")
+		case "date":
+			query = query.Order("user_created_at DESC")
+		default: // "name" is default
+			query = query.Order("user_full_name ASC")
+		}
+
+		// Apply pagination
+		query = query.Offset(offset).Limit(limit)
+
+		// Execute the query
+		var userData []table.User
+		if err := query.Find(&userData).Error; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success":    false,
+				"message":    "Failed to fetch user data from db.",
+				"error_code": 5,
+				"data":       nil,
+			})
+		}
+
+		// Return results with total count
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"success":    true,
+			"message":    "Check data.",
+			"error_code": 0,
+			"data": fiber.Map{
+				"users": userData,
+				"total": totalCount,
+			},
+		})
+	})
+}

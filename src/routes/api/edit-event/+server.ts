@@ -25,7 +25,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
     if (!res.ok) {
       const errorText = await res.text();
-      return new Response(`Failed to register webinar: ${errorText}`, { status: res.status });
+      return new Response(`Failed to edit webinar: ${errorText}`, { status: res.status });
     }
 
     const responseData = await res.text();

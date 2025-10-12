@@ -35,7 +35,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
     if (!res.ok) {
       const errorText = await res.text();
-      return new Response(`Failed to get user info: ${errorText}`, { status: res.status });
+      return new Response(`Failed to get search event: ${errorText}`, { status: res.status });
     }
 
     const responseData = await res.text();
