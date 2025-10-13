@@ -7,13 +7,14 @@
   export let shadow: string = "shadow-md shadow-blue-100"; // Customizable shadow
   export let border: string = "border border-white/70"; // Customizable border
   export let bgColor: string = "bg-white/40"; // Background color
-  export let width: string = "w-full"; // Width of the card
+  export let width: string = "w-[98%]"; // Width of the card
   export let height: string = "h-auto"; // Width of the card
   export let hover: string = ""; // Optional hover effects
+  export let margin: string = "m-2";
   export let onClick: (() => void) | null = null; // Optional click handler
   
   // Computed classes
-  let cardClasses = `${padding} ${rounded} ${shadow} ${border} ${bgColor} ${width} ${height} ${hover} ${onClick ? 'cursor-pointer' : ''} m-2`;
+  let cardClasses = `${padding} ${rounded} ${shadow} ${border} ${bgColor} ${width} ${height} ${hover} ${onClick ? 'cursor-pointer' : ''} ${margin}`;
   
   // Handle click events if handler is provided
   function handleClick() {

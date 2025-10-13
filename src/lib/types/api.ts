@@ -67,16 +67,19 @@ export interface EventParticipant {
 
 export interface User {
 	ID: number;
+
+	// UNUSED
 	CreatedAt: string;
 	UpdatedAt: string;
 	DeletedAt?: string | null;
+	UserCreatedAt: string; // datetime string
+	// UNUSED
 
 	UserFullName: string;
 	UserEmail: string;
 	UserInstance: string;
 	UserRole: number;
-	UserPicture: string;
-	UserCreatedAt: string; // datetime string
+	UserPicture: string; //IGNORE
 
 	EventParticipants?: EventParticipant[];
 }

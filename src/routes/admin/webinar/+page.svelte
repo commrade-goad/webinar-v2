@@ -4,6 +4,7 @@
 	import Card from '$lib/components/Card.svelte';
 	import { DateTime } from 'luxon';
 	import type { IEvent, ApiResponse, AttTypeEnum } from '$lib/types/api';
+	import { goto } from '$app/navigation';
 
 	// State for webinars
 	let webinars = $state<IEvent[]>([]);
@@ -853,7 +854,7 @@
 									Edit
 								</button>
 								<button
-									onclick={() => alert("Halaman webinar belum diimplementasi")}
+									onclick={() => goto(`/webinar/${webinar.ID}`)}
 									class="flex items-center gap-1 rounded-xl bg-sky-600 px-3 py-1.5 text-white transition-colors hover:bg-sky-700"
 								>
 								Halaman Webinar
