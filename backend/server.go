@@ -54,11 +54,11 @@ func appMakeRouteHandler(backend *Backend) {
 		SigningKey: jwtware.SigningKey{Key: []byte(backend.pass)},
 	}))
 
-	cookieJWT := api.Group("/c", jwtware.New(jwtware.Config{
-		SigningKey:  jwtware.SigningKey{Key: []byte(backend.pass)},
-		TokenLookup: "cookie:jwt",
-		ContextKey:  "user",
-	}))
+	// cookieJWT := api.Group("/c", jwtware.New(jwtware.Config{
+	// 	SigningKey:  jwtware.SigningKey{Key: []byte(backend.pass)},
+	// 	TokenLookup: "cookie:jwt",
+	// 	ContextKey:  "user",
+	// }))
 
 	app.Static("/static", "./static")
 
@@ -79,7 +79,7 @@ func appMakeRouteHandler(backend *Backend) {
 	appHandleRegisterAdmin(backend, protected)
 	appHandleUserSearch(backend, protected)
 	appHandleUserLogOut(backend, protected)
-	appHandleUserLogOut(backend, cookieJWT)
+	// appHandleUserLogOut(backend, cookieJWT)
 
 	// EVENT STUFF
 	appHandleEventInfoAll(backend, protected)
@@ -107,9 +107,9 @@ func appMakeRouteHandler(backend *Backend) {
 
 	appHandleCertNewDumb(backend, protected)
 
-	appHandleCertEditor(backend, cookieJWT)
-	appHandleCertEditorUploadImage(backend, cookieJWT)
-	appHandleCertEditorUploadHtml(backend, cookieJWT)
+	// appHandleCertEditor(backend, cookieJWT)
+	// appHandleCertEditorUploadImage(backend, cookieJWT)
+	// appHandleCertEditorUploadHtml(backend, cookieJWT)
 
 	appHandleCertEditor(backend, protected)
 	appHandleCertEditorUploadImage(backend, protected)

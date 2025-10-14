@@ -197,6 +197,7 @@
             <button onclick="addObject('UserName')">Add Name</button>
             <button onclick="addObject('EventName')">Add Event</button>
             <button onclick="addObject('UnikID')">Add EvID</button>
+            <button onclick="addObject('UserRole')">Add UserRole</button>
             <button onclick="deleteSelected()">Delete Selected</button>
             <button onclick="clearCanvas()">Clear Canvas</button>
 
@@ -207,28 +208,6 @@
         </div>
 
         <div class="canvas" id="canvas">
-            <!-- Default objects -->
-            <div class="draggable-object" data-type="UserName" style="left: 50px; top: 50px; width: 150px; height: 50px; color: #000000; font-size: 16px; font-weight: bold; font-style: normal; text-decoration: none;">
-                UserName
-                <div class="resize-handle nw"></div>
-                <div class="resize-handle ne"></div>
-                <div class="resize-handle sw"></div>
-                <div class="resize-handle se"></div>
-            </div>
-            <div class="draggable-object" data-type="EventName" style="left: 250px; top: 150px; width: 180px; height: 60px; color: #000000; font-size: 16px; font-weight: bold; font-style: normal; text-decoration: none;">
-                EventName
-                <div class="resize-handle nw"></div>
-                <div class="resize-handle ne"></div>
-                <div class="resize-handle sw"></div>
-                <div class="resize-handle se"></div>
-            </div>
-            <div class="draggable-object" data-type="UnikID" style="left: 100px; top: 300px; width: 120px; height: 45px; color: #000000; font-size: 16px; font-weight: bold; font-style: normal; text-decoration: none;">
-                UnikID
-                <div class="resize-handle nw"></div>
-                <div class="resize-handle ne"></div>
-                <div class="resize-handle sw"></div>
-                <div class="resize-handle se"></div>
-            </div>
         </div>
 
         <div class="object-properties">
@@ -251,7 +230,7 @@
         let startLeft = 0;
         let startTop = 0;
         let resizeDirection = '';
-        let objectCounter = { UserName: 1, EventName: 1, UnikID: 1 };
+        let objectCounter = { UserName: 0, EventName: 0, UnikID: 0, UserRole: 0 };
 
         var backgroundURL = "";
 
@@ -710,6 +689,9 @@
                         break;
                     case 'UnikID':
                         templateVar = `\{\{ .UniqueID \}\}`;
+                        break;
+                    case 'UserRole':
+                        templateVar = `\{\{ .UserRole \}\}`;
                         break;
                     default:
                         templateVar = type;

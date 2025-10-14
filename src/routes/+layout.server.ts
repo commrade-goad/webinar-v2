@@ -5,7 +5,7 @@ import { PRIVATE_JWT_SECRET } from '$env/static/private';
 
 export const load: LayoutServerLoad = ({ cookies, url }) => {
     const token = cookies.get('user');
-    const allowed = ['/login', '/land', '/register'];
+    const allowed = ['/login', '/land', '/register', '/cert-view'];
 
     if (!token && !allowed.includes(url.pathname)) {
         throw redirect(303, '/login');

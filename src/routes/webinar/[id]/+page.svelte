@@ -1,15 +1,19 @@
 <script lang="ts">
-	// TODO: Sertifikat tombol, admin conrtol (tambah panitia, ubah poster, nama, pembicara)
+	import { goto } from '$app/navigation';
+
+	// TODO: Tambah Sertifikat, admin conrtol (tambah panitia, ubah poster, nama, pembicara, absen semua)
+	// ANOTHER TODO: Selesaikan page profil dan webinar
 	import { page } from '$app/state';
 	import Body from '$lib/components/Body.svelte';
 	import Card from '$lib/components/Card.svelte';
-	import type { ApiResponse, EventParticipant, IEvent } from '$lib/types/api';
+	import type { ApiResponse, CertTemplate, EventParticipant, IEvent } from '$lib/types/api';
 	import { onMount } from 'svelte';
 
 	let webinarId = $derived(page.params.id);
 	let data: Partial<IEvent> = $state({});
 	let participantCount = $state(0);
-	let participantData = $state({});
+	let participantData: Partial<EventParticipant> = $state({});
+	let certExist: boolean = $state(false);
 	let isLoading = $state(true);
 	let error = $state('');
 	let user = $derived(page.data.user);
@@ -48,9 +52,11 @@
 			if (data.success && data.data) {
 				participantData = data.data;
 				isRegistered = true;
+			} else {
+				participantData = {};
 			}
 		} catch (err) {
-			console.error('Error fetching participant count:', err);
+			console.error('Error fetching participant data:', err);
 		}
 	};
 
@@ -90,7 +96,7 @@
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
-					id: webinarId
+					id: Number(webinarId)
 				})
 			});
 
@@ -109,6 +115,53 @@
 			error = err instanceof Error ? err.message : 'Failed to fetch webinar data';
 		} finally {
 			isLoading = false;
+		}
+	};
+
+	const certIsClaimable = () => {
+		const now = new Date();
+		if (data.EventDEnd) {
+			const end = new Date(data.EventDEnd);
+			let first = now.getTime() > end.getTime();
+			// Check if the cert is available and created
+			return certExist && first;
+		}
+		return false;
+	};
+	const beableToEditCert = () => {
+		if (participantData) {
+			if (participantData.EventPRole == "committee") {
+				return true;
+			}
+		}
+		if (user.admin == 1) {
+			return true;
+		}
+		return false;
+	};
+
+	const getCertStatus = async () => {
+		try {
+			const response = await fetch('/api/get-event-cert-info', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					id: webinarId
+				})
+			});
+
+			if (!response.ok) {
+				throw new Error(`Error: ${response.status}`);
+			}
+
+			const data: ApiResponse<EventParticipant> = await response.json();
+			if (data.success && data.data) {
+				certExist = data.success;
+			}
+		} catch (err) {
+			console.error('Error fetching event cert:', err);
 		}
 	};
 
@@ -165,9 +218,10 @@
 	};
 
 	onMount(async () => {
-		fetchData();
-		fetchPartCount();
-		fetchStatus();
+		await fetchData();
+		await fetchPartCount();
+		await fetchStatus();
+		await getCertStatus();
 	});
 </script>
 
@@ -238,7 +292,7 @@
 								<p class="font-medium">{participantCount} / {data.EventMax || 'Unlimited'}</p>
 							</div>
 
-							{#if isRegistered && showButton()}
+							{#if !isRegistered && showButton()}
 								<div class="pt-2">
 									<button
 										onclick={regWebinar}
@@ -248,13 +302,13 @@
 									</button>
 								</div>
 							{/if}
-							{#if !isRegistered} <!-- TODO add check to end date not start date -->
+							{#if isRegistered && certIsClaimable()}
 								<div class="pt-2">
 									<button
-										onclick={() => {alert("INFO NOT IMPLEMENTED")}}
+										onclick={() => {goto(`/cert-view/${participantData.EventPCode}`)}}
 										class="inline-flex items-center justify-center rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:outline-none"
 									>
-										Sertifikat(WIP)
+										Sertifikat
 									</button>
 								</div>
 							{/if}
@@ -269,7 +323,18 @@
 										Tambahkan panitia Webinar(WIP)
 									</a>
 								</div>
+
 							{/if}
+								{#if !certExist && beableToEditCert()}
+								<div class="pt-2">
+									<a
+										href={`${webinarId}/cert-editor`}
+										class="inline-flex items-center justify-center rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:outline-none"
+									>
+										Tambahkan sertifikat(WIP)
+									</a>
+								</div>
+								{/if}
 						</div>
 					</Card>
 

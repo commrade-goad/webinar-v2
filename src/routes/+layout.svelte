@@ -6,7 +6,7 @@
 
 	let { children } = $props();
 
-	const hiddenRoutes = ['/', '/login', '/register'];
+	const hiddenRoutes = ['/', '/login', '/register', '/cert-view'];
 	const pathname = $derived(page.url.pathname);
 	const hideLayout = $derived(hiddenRoutes.includes(pathname));
 

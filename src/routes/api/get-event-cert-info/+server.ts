@@ -15,7 +15,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
       return new Response(`Invalid event id is given`, { status: 400 });
     }
 
-    const url = `${env.PRIVATE_API_URL}/api/protected/event-participate-info-of?event_id=${eventId}`;
+    const url = `${env.PRIVATE_API_URL}/api/protected/cert-info-of?id=${eventId}`;
     
     console.log("Sending request to:", url);
     
@@ -29,8 +29,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
     if (!res.ok) {
       const errorText = await res.text();
-      console.error("Failed to get event part data: ", res.status, errorText);
-      return new Response(`Failed to get event part data: ${errorText}`, { status: res.status });
+      console.error("Failed to get event cert: ", res.status, errorText);
+      return new Response(`Failed to get event cert: ${errorText}`, { status: res.status });
     }
 
     const responseData = await res.text();
