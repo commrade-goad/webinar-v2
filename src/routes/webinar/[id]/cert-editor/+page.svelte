@@ -2,4 +2,5 @@
 	import Body from '$lib/components/Body.svelte';
 </script>
 
-<Body></Body>
+<Body>
+</Body>

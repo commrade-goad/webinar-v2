@@ -2,7 +2,6 @@
 	import { goto } from '$app/navigation';
 
 	// TODO: Tambah Sertifikat
-	// ANOTHER TODO: Selesaikan page profil dan webinar
 	import { page } from '$app/state';
 	import Body from '$lib/components/Body.svelte';
 	import Card from '$lib/components/Card.svelte';
@@ -569,10 +568,6 @@
 		await getCommitteeList();
 	});
 
-	////////////////
-	// -- TODO -- //
-	////////////////
-
 	let showDropdown = $state(false);
 	let searchCommittee = $state('');
 	let selectedCommittee: Partial<User>[] = $state([]);
@@ -586,7 +581,6 @@
 		if (index >= 0) {
 			// User is already selected, remove them
 			selectedCommittee = selectedCommittee.filter((c) => c.ID !== user.ID);
-			// TODO: Do api call
 			if (user.UserEmail) delPartWebinar(user.UserEmail);
 		} else {
 			// User is not selected, add them

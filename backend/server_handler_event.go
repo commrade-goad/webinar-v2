@@ -627,6 +627,7 @@ func appHandleEventCount(backend *Backend, route fiber.Router) {
 }
 
 // GET : api/protected/event-search
+// GET : api/protected/event-search
 func appHandleEventSearch(backend *Backend, route fiber.Router) {
 	route.Get("event-search", func(c *fiber.Ctx) error {
 		claims, err := GetJWT(c)
@@ -667,8 +668,8 @@ func appHandleEventSearch(backend *Backend, route fiber.Router) {
 			limit = 10
 		}
 
-		// Build the query
-		query := backend.db.Model(&table.Event{})
+		// Build the query - explicitly filter out soft-deleted records
+		query := backend.db.Model(&table.Event{}).Where("deleted_at IS NULL")
 
 		// Apply search if provided
 		if searchQuery != "" {
@@ -689,7 +690,15 @@ func appHandleEventSearch(backend *Backend, route fiber.Router) {
 
 		// Apply type filter
 		if eventType != "all" {
-			query = query.Where("event_att = ?", eventType)
+			// Convert string type to AttTypeEnum
+			var typeEnum table.AttTypeEnum
+			if eventType == "online" {
+				typeEnum = table.Online
+			} else if eventType == "offline" {
+				typeEnum = table.Offline
+			}
+			
+			query = query.Where("event_att = ?", typeEnum)
 		}
 
 		// Count total matching records (before pagination)

@@ -1128,6 +1128,7 @@ func appHandleUserRegistered(backend *Backend, route fiber.Router) {
 }
 
 // GET : api/protected/user-search
+// GET : api/protected/user-search
 func appHandleUserSearch(backend *Backend, route fiber.Router) {
 	route.Get("user-search", func(c *fiber.Ctx) error {
 		claims, err := GetJWT(c)
@@ -1167,8 +1168,8 @@ func appHandleUserSearch(backend *Backend, route fiber.Router) {
 			offset = 0
 		}
 
-		// Build the query
-		query := backend.db.Model(&table.User{})
+		// Build the query - explicitly filter out soft-deleted records
+		query := backend.db.Model(&table.User{}).Where("deleted_at IS NULL")
 
 		// Apply search if provided
 		if searchQuery != "" {
@@ -1192,7 +1193,7 @@ func appHandleUserSearch(backend *Backend, route fiber.Router) {
 		case "email":
 			query = query.Order("user_email ASC")
 		case "date":
-			query = query.Order("user_created_at DESC")
+			query = query.Order("created_at DESC") // Using GORM's default created_at field
 		default: // "name" is default
 			query = query.Order("user_full_name ASC")
 		}
