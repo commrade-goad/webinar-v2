@@ -5,6 +5,7 @@ import (
     "fmt"
     "webrpl/table"
     "errors"
+    "time"
 
     "gorm.io/gorm"
     "github.com/gofiber/fiber/v2"
@@ -685,6 +686,186 @@ func appHandleEventParticipateOfUser(backend *Backend, route fiber.Router) {
         })
     })
 }
+
+// NOTE: return the events that participated by the selected user with search and sort capability.
+// GET : api/protected/event-participate-of-user-ws
+func appHandleEventParticipateOfUserWithSearch(backend *Backend, route fiber.Router) {
+    route.Get("event-participate-of-user-ws", func(c *fiber.Ctx) error {
+        claims, err := GetJWT(c)
+        if err != nil {
+            return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+                "success": false,
+                "message": "Invalid JWT Token.",
+                "error_code": 1,
+                "data": nil,
+            })
+        }
+
+        admin := claims["admin"].(float64)
+        email := claims["email"].(string)
+
+        userEmail := c.Query("email")
+
+        useThisEmail := email
+        if admin == 1 && userEmail != "" {
+            useThisEmail = userEmail
+        }
+
+        var selectedUser table.User
+        res := backend.db.Where("user_email = ?", useThisEmail).First(&selectedUser)
+        if res.Error != nil {
+            return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                "success": false,
+                "message": fmt.Sprintf("There is no user with that id on the db, %v", res.Error),
+                "error_code": 3,
+                "data": nil,
+            })
+        }
+
+        // Get query parameters
+        offsetQuery := c.Query("offset", "0")
+        limitQuery := c.Query("limit", "10")
+        searchQuery := c.Query("search", "")
+        sortBy := c.Query("sort", "date")
+        status := c.Query("status", "all")
+        eventType := c.Query("type", "all")
+        roleFilter := c.Query("role", "normal")
+
+        // Convert limit and offset to integers
+        offset, err := strconv.Atoi(offsetQuery)
+        if err != nil {
+            offset = 0
+        }
+        limit, err := strconv.Atoi(limitQuery)
+        if err != nil {
+            limit = 10
+        }
+
+        // Start building query with a subquery to get distinct event IDs
+        // Add explicit check for deleted_at IS NULL to only include non-deleted records
+        subQuery := backend.db.Model(&table.EventParticipant{}).
+            Select("DISTINCT event_id").
+            Where("user_id = ? AND deleted_at IS NULL", selectedUser.ID)
+
+        // Apply role filter to subquery
+        if roleFilter != "all" {
+            var roleEnum table.UserEventRoleEnum
+            if roleFilter == "normal" {
+                roleEnum = table.NormalU
+            } else if roleFilter == "committee" {
+                roleEnum = table.CommitteeU
+            }
+            
+            subQuery = subQuery.Where("eventp_role = ?", roleEnum)
+        }
+
+        // Get the event IDs from subquery
+        var eventIDs []int
+        if err := subQuery.Find(&eventIDs).Error; err != nil {
+            return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                "success": false,
+                "message": "Failed to fetch event IDs.",
+                "error_code": 5,
+                "data": nil,
+            })
+        }
+        
+        // If no event IDs found, return early
+        if len(eventIDs) == 0 {
+            return c.Status(fiber.StatusOK).JSON(fiber.Map{
+                "success": true,
+                "message": "This user hasn't participated in any events matching the criteria.",
+                "error_code": 0,
+                "data": fiber.Map{
+                    "events": []table.Event{},
+                    "total":  0,
+                },
+            })
+        }
+
+        // Debug information
+        fmt.Printf("Found %d distinct event IDs: %v\n", len(eventIDs), eventIDs)
+
+        // Now query the events table with the distinct event IDs
+        // Also ensure we're only returning non-deleted events
+        query := backend.db.Model(&table.Event{}).
+            Where("id IN ? AND deleted_at IS NULL", eventIDs)
+
+        // Apply search if provided
+        if searchQuery != "" {
+            query = query.Where("event_name LIKE ? OR event_desc LIKE ? OR event_speaker LIKE ?",
+                "%"+searchQuery+"%", "%"+searchQuery+"%", "%"+searchQuery+"%")
+        }
+
+        // Apply status filter
+        now := time.Now()
+        switch status {
+        case "live":
+            query = query.Where("event_dstart <= ? AND event_dend >= ?", now, now)
+        case "upcoming":
+            query = query.Where("event_dstart > ?", now)
+        case "ended":
+            query = query.Where("event_dend < ?", now)
+        }
+
+        // Apply type filter
+        if eventType != "all" {
+            var typeEnum table.AttTypeEnum
+            if eventType == "online" {
+                typeEnum = table.Online
+            } else if eventType == "offline" {
+                typeEnum = table.Offline
+            }
+            
+            query = query.Where("event_att = ?", typeEnum)
+        }
+
+        // Count total matching records (before pagination)
+        var totalCount int64
+        if err := query.Count(&totalCount).Error; err != nil {
+            return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                "success": false,
+                "message": "Failed to count events from db.",
+                "error_code": 3,
+                "data": nil,
+            })
+        }
+
+        // Apply sorting
+        switch sortBy {
+        case "name":
+            query = query.Order("event_name ASC")
+        default: // "date" is default
+            query = query.Order("event_dstart DESC")
+        }
+
+        // Apply pagination
+        query = query.Offset(offset).Limit(limit)
+
+        // Execute the query
+        var eventList []table.Event
+        if err := query.Find(&eventList).Error; err != nil {
+            return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                "success": false,
+                "message": "Failed to fetch event data from db.",
+                "error_code": 4,
+                "data": nil,
+            })
+        }
+
+        // Return results with total count
+        return c.Status(fiber.StatusOK).JSON(fiber.Map{
+            "success": true,
+            "message": "Check data.",
+            "error_code": 0,
+            "data": fiber.Map{
+                "events": eventList,
+                "total":  totalCount,
+            },
+        })
+    })
+}
+
 // POST : api/protected/event-participate-absence-itself
 func appHandleEventParticipateAbsenceItself(backend *Backend, route fiber.Router) {
     route.Post("event-participate-absence-itself", func (c *fiber.Ctx) error {

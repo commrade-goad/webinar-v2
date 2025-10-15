@@ -185,7 +185,6 @@
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
 				{#each upcomingEvents as event}
 					<Card
-						title={event.EventName}
 						padding="p-5"
 						border="border border-gray-200"
 						shadow="shadow-md"
@@ -195,12 +194,18 @@
 							goto(`/webinar/${event.ID}`);
 						}}
 					>
-						<div class="space-y-2">
+					<div>
+						<div class='min-h-16 overflow-ellipsis'>
+							<h1 class='text-lg font-semibold line-clamp-2'>{event.EventName}</h1>
+						</div>
+						<div class="w-full h-48 overflow-hidden mb-4">
 							<img
 								src={event.EventImg}
 								alt="Event poster"
-								class="h-auto max-h-64 w-full object-contain"
+								class="h-auto max-h-64 w-full object-cover"
 							/>
+						</div>
+						<div>
 							<p class="text-sm">
 								<strong>Pembicara:</strong>
 								{event.EventSpeaker || 'Tidak tersedia'}
@@ -208,6 +213,7 @@
 							<p class="text-sm"><strong>Mulai:</strong> {formatDate(event.EventDStart)}</p>
 							<p class="text-sm"><strong>Selesai:</strong> {formatDate(event.EventDEnd)}</p>
 						</div>
+					</div>
 					</Card>
 				{/each}
 			</div>

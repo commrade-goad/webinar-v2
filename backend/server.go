@@ -123,6 +123,7 @@ func appMakeRouteHandler(backend *Backend) {
 	appHandleEventParticipateOfEvent(backend, protected)
 	appHandleEventParticipateCommitteeOfEvent(backend, protected)
 	appHandleEventParticipateOfUser(backend, protected)
+	appHandleEventParticipateOfUserWithSearch(backend, protected)
 	appHandleEventParticipateAbsence(backend, protected)
 	appHandleEventParticipateOfEventCount(backend, protected)
 	appHandleEventParticipateAbsenceBulk(backend, protected)
