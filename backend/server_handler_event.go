@@ -100,7 +100,8 @@ func appHandleEventNew(backend *Backend, route fiber.Router) {
 			EventSpeaker: body.Speaker,
 			EventAtt:     table.AttTypeEnum(body.Att),
 			EventImg:     body.Img,
-			EventMax:     body.Max,
+			// EventMax:     body.Max,
+			EventMax:     1, // UNUSED
 			EventLink:    body.Link,
 		}
 
@@ -414,9 +415,9 @@ func appHandleEventEdit(backend *Backend, route fiber.Router) {
 		if body.Img != nil {
 			event.EventImg = *body.Img
 		}
-		if body.Max != nil {
-			event.EventMax = *body.Max
-		}
+		// if body.Max != nil {
+		// 	event.EventMax = *body.Max
+		// }
 		if body.CertTemplate != nil {
 			var cert_temp table.CertTemplate
 			res := backend.db.Where("id = ?", *body.CertTemplate).First(&cert_temp)

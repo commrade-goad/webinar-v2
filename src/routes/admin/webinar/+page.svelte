@@ -38,7 +38,6 @@
 	let eventDend = $state(''); // Date part
 	let eventTimeEnd = $state(''); // Time part
 	let eventLink = $state('');
-	let eventMax = $state(100);
 	let eventAtt = $state<AttTypeEnum>('online');
 	let eventImg = $state(''); // This will now hold base64 data
 	let imageFile = $state<File | null>(null); // To hold the file object
@@ -192,7 +191,6 @@
 		eventDend = '';
 		eventTimeEnd = '';
 		eventLink = '';
-		eventMax = 100;
 		eventAtt = 'online';
 		eventImg = '';
 		imageFile = null;
@@ -224,7 +222,6 @@
 		eventDesc = webinar.EventDesc || '';
 		eventSpeaker = webinar.EventSpeaker || '';
 		eventLink = webinar.EventLink || '';
-		eventMax = webinar.EventMax || 100;
 		eventAtt = webinar.EventAtt || 'online';
 
 		// Set image if available
@@ -363,7 +360,6 @@
 			dstart: startDateTime,
 			dend: endDateTime,
 			link: eventLink,
-			max: eventMax,
 			att: eventAtt,
 			img: eventImg
 		};
@@ -649,18 +645,7 @@
 					/>
 				</div>
 
-				<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-					<div>
-						<p class="mb-1 block text-sm font-medium text-gray-700">Partisipan maximal</p>
-						<input
-							type="number"
-							bind:value={eventMax}
-							min="1"
-							class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-sky-500 focus:ring-sky-500 focus:outline-none"
-							required
-						/>
-					</div>
-
+				<div class="grid grid-cols-1 gap-4 md:grid-cols-1">
 					<div>
 						<p class="mb-1 block text-sm font-medium text-gray-700">Tipe Webinar</p>
 						<select
@@ -816,10 +801,6 @@
 									<p class="mb-2 text-sm">
 										<strong>Tipe:</strong>
 										{webinar.EventAtt === 'online' ? 'Online' : 'Offline'}
-									</p>
-									<p class="mb-2 text-sm">
-										<strong>Partisipasi maximal:</strong>
-										{webinar.EventMax}
 									</p>
 									{#if webinar.EventLink}
 										<p class="mb-2 text-sm">

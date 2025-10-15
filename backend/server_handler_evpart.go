@@ -82,25 +82,25 @@ func appHandleEventParticipateRegister(backend *Backend, route fiber.Router) {
             })
         }
 
-        var eventParticipantCount int64
-        res = backend.db.Model(&table.EventParticipant{}).Where("event_id = ?", body.EventId).Count(&eventParticipantCount)
-        if res.Error != nil {
-            return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-                "success": false,
-                "message": "Failed to fetch event count from db.",
-                "error_code": 7,
-                "data": nil,
-            })
-        }
+        // var eventParticipantCount int64
+        // res = backend.db.Model(&table.EventParticipant{}).Where("event_id = ?", body.EventId).Count(&eventParticipantCount)
+        // if res.Error != nil {
+        //     return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+        //         "success": false,
+        //         "message": "Failed to fetch event count from db.",
+        //         "error_code": 7,
+        //         "data": nil,
+        //     })
+        // }
 
-        if event.EventMax <= int(eventParticipantCount) + 1 {
-            return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-                "success": false,
-                "message": "Event is already full.",
-                "error_code": 8,
-                "data": nil,
-            })
-        }
+        // if event.EventMax <= int(eventParticipantCount) + 1 {
+        //     return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+        //         "success": false,
+        //         "message": "Event is already full.",
+        //         "error_code": 8,
+        //         "data": nil,
+        //     })
+        // }
 
         useThisEmail := email
         if admin == 1 && body.CustomUserEmail != nil && *body.CustomUserEmail != "" {
@@ -492,6 +492,71 @@ func appHandleEventParticipateEdit(backend *Backend, route fiber.Router) {
                 "user_email": targetUserEmail,
                 "new_role": body.EventPRole,
             },
+        })
+    })
+}
+
+// GET : api/protected/event-participate-committee-of-event
+func appHandleEventParticipateCommitteeOfEvent(backend *Backend, route fiber.Router) {
+    route.Get("event-participate-committee-of-event", func (c *fiber.Ctx) error {
+        claims, err := GetJWT(c)
+        if err != nil {
+            return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+                "success": false,
+                "message": "Invalid JWT Token.",
+                "error_code": 1,
+                "data": nil,
+            })
+        }
+
+        admin := claims["admin"].(float64)
+        if admin != 1 {
+            return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+                "success": false,
+                "message": "Invalid Credentials.",
+                "error_code": 2,
+                "data": nil,
+            })
+        }
+
+        queryEventID := c.Query("event_id")
+        queryEventIDInt, err := strconv.Atoi(queryEventID)
+        if err != nil {
+            return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+                "success": false,
+                "message": "event_id need to be integer.",
+                "error_code": 3,
+                "data": nil,
+            })
+        }
+
+        var selectedEvent table.Event
+        res := backend.db.Where("id = ?", queryEventIDInt).First(&selectedEvent)
+        if res.Error != nil {
+            return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                "success": false,
+                "message": "The specified event ID didnt exist.",
+                "error_code": 4,
+                "data": nil,
+            })
+        }
+
+        var participants []table.EventParticipant
+        res = backend.db.Preload("User").Where("event_id = ? AND eventp_role = ?", selectedEvent.ID, table.CommitteeU).Find(&participants)
+        if res.Error != nil {
+            return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                "success": false,
+                "message": "There is no event participant for that event.",
+                "error_code": 5,
+                "data": nil,
+            })
+        }
+
+        return c.Status(fiber.StatusOK).JSON(fiber.Map{
+            "success": true,
+            "message": "Check data.",
+            "error_code": 0,
+            "data": participants,
         })
     })
 }

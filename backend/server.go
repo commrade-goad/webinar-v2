@@ -121,6 +121,7 @@ func appMakeRouteHandler(backend *Backend) {
 	appHandleEventParticipateEdit(backend, protected)
 	appHandleEventParticipateDel(backend, protected)
 	appHandleEventParticipateOfEvent(backend, protected)
+	appHandleEventParticipateCommitteeOfEvent(backend, protected)
 	appHandleEventParticipateOfUser(backend, protected)
 	appHandleEventParticipateAbsence(backend, protected)
 	appHandleEventParticipateOfEventCount(backend, protected)
