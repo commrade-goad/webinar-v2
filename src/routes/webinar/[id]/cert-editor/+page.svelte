@@ -1,4 +1,5 @@
 <script lang="ts">
+	// TODO: Build the stuff bro you still didnt do the add cert api
 	import { onMount } from 'svelte';
 	import Body from '$lib/components/Body.svelte';
 	import Card from '$lib/components/Card.svelte';
@@ -6,8 +7,8 @@
 	// State variables for dragging and resizing
 	let isDragging = false;
 	let isResizing = false;
-	let currentElement: HTMLElement | null = null;
-	let selectedElement: HTMLElement | null = null;
+	let currentElement: HTMLElement | null = $state(null);
+	let selectedElement: HTMLElement | null = $state(null);
 	let offsetX = 0;
 	let offsetY = 0;
 	let startX = 0;
@@ -20,6 +21,43 @@
 	let textContent = $state('Text Element');
 	let fontSize = $state(16);
 	let textColor = $state('#000000');
+	let fontFamily = $state('Arial, sans-serif');
+	let textAlign = $state('center');
+	let backgroundColor = $state('rgba(255, 255, 255, 0.7)');
+	let borderColor = $state('#dddddd');
+	let borderWidth = $state(1);
+	let borderStyle = $state('solid');
+	let borderRadius = $state(0);
+	let opacity = $state(100); // 0-100%
+	
+	// Available font families
+	const fontFamilies = [
+		'Arial, sans-serif',
+		'Times New Roman, serif',
+		'Courier New, monospace',
+		'Georgia, serif',
+		'Verdana, sans-serif',
+		'Tahoma, sans-serif',
+		'Trebuchet MS, sans-serif',
+		'Impact, fantasy',
+		'Comic Sans MS, cursive',
+		'Roboto, sans-serif',
+		'Open Sans, sans-serif',
+		'Lato, sans-serif'
+	];
+	
+	// Available border styles
+	const borderStyles = [
+		'solid',
+		'dashed',
+		'dotted',
+		'double',
+		'groove',
+		'ridge',
+		'inset',
+		'outset',
+		'none'
+	];
 	
 	// Initialize draggable and resizable functionality when component mounts
 	onMount(() => {
@@ -223,10 +261,37 @@
 		element.classList.add('selected');
 		selectedElement = element;
 		
+		// Get computed style of the element
+		const style = window.getComputedStyle(element);
+		
 		// Update properties based on the selected element
 		textContent = element.dataset.textContent || element.textContent || 'Text Element';
-		fontSize = parseInt(element.style.fontSize) || 16;
-		textColor = element.style.color || '#000000';
+		
+		// Extract numeric value from font size (remove 'px')
+		fontSize = parseInt(style.fontSize) || 16;
+		
+		// Get font family
+		fontFamily = style.fontFamily || 'Arial, sans-serif';
+		
+		// Get text color
+		textColor = style.color || '#000000';
+		
+		// Get text alignment
+		textAlign = style.textAlign || 'center';
+		
+		// Get background color
+		backgroundColor = style.backgroundColor || 'rgba(255, 255, 255, 0.7)';
+		
+		// Get border properties
+		borderWidth = parseInt(style.borderWidth) || 1;
+		borderColor = style.borderColor || '#dddddd';
+		borderStyle = style.borderStyle || 'solid';
+		
+		// Get border radius
+		borderRadius = parseInt(style.borderRadius) || 0;
+		
+		// Get opacity (convert from 0-1 to 0-100)
+		opacity = Math.round((parseFloat(style.opacity) || 1) * 100);
 	}
 	
 	// Deselect all elements
@@ -255,9 +320,14 @@
 		newElement.style.padding = '8px';
 		newElement.style.fontSize = '16px';
 		newElement.style.color = '#000000';
+		newElement.style.fontFamily = 'Arial, sans-serif';
+		newElement.style.textAlign = 'center';
+		newElement.style.border = '1px solid #dddddd';
+		newElement.style.borderRadius = '0px';
 		newElement.style.display = 'flex';
 		newElement.style.alignItems = 'center';
 		newElement.style.justifyContent = 'center';
+		newElement.style.opacity = '1';
 		
 		// Add to canvas
 		canvasElement.appendChild(newElement);
@@ -290,12 +360,72 @@
 			selectedElement.style.color = textColor;
 		}
 	}
+	
+	// Update font family of selected element
+	function updateFontFamily() {
+		if (selectedElement) {
+			selectedElement.style.fontFamily = fontFamily;
+		}
+	}
+	
+	// Update text alignment of selected element
+	function updateTextAlign() {
+		if (selectedElement) {
+			selectedElement.style.textAlign = textAlign;
+			
+			// Update flexbox alignment based on text alignment
+			switch (textAlign) {
+				case 'left':
+					selectedElement.style.justifyContent = 'flex-start';
+					break;
+				case 'center':
+					selectedElement.style.justifyContent = 'center';
+					break;
+				case 'right':
+					selectedElement.style.justifyContent = 'flex-end';
+					break;
+				default:
+					selectedElement.style.justifyContent = 'center';
+			}
+		}
+	}
+	
+	// Update background color of selected element
+	function updateBackgroundColor() {
+		if (selectedElement) {
+			selectedElement.style.backgroundColor = backgroundColor;
+		}
+	}
+	
+	// Update border properties of selected element
+	function updateBorder() {
+		if (selectedElement) {
+			selectedElement.style.borderWidth = `${borderWidth}px`;
+			selectedElement.style.borderColor = borderColor;
+			selectedElement.style.borderStyle = borderStyle;
+		}
+	}
+	
+	// Update border radius of selected element
+	function updateBorderRadius() {
+		if (selectedElement) {
+			selectedElement.style.borderRadius = `${borderRadius}px`;
+		}
+	}
+	
+	// Update opacity of selected element
+	function updateOpacity() {
+		if (selectedElement) {
+			selectedElement.style.opacity = (opacity / 100).toString();
+		}
+	}
 </script>
 
 <svelte:window on:mousemove={handleMouseMove} on:mouseup={handleMouseUp} />
 
 <style>
 	.dragable {
+		overflow: hidden;
 		cursor: move;
 		position: absolute;
 		user-select: none;
@@ -342,6 +472,30 @@
 		margin-bottom: 0.5rem;
 		color: #4b5563;
 	}
+	
+	.property-section {
+		border-bottom: 1px solid #e5e7eb;
+		padding-bottom: 1rem;
+		margin-bottom: 1rem;
+	}
+	
+	.property-section:last-child {
+		border-bottom: none;
+	}
+	
+	.property-title {
+		font-weight: 600;
+		font-size: 0.9rem;
+		margin-bottom: 0.75rem;
+		color: #374151;
+	}
+	
+	.color-preview {
+		width: 24px;
+		height: 24px;
+		border-radius: 4px;
+		border: 1px solid #e5e7eb;
+	}
 </style>
 
 <Body>
@@ -357,82 +511,256 @@
 				</div>
 			</div>
 		</Card>
-		<Card width="w-[300px]" padding="p-5">
-			<h3 class="text-lg font-medium mb-4">Properties</h3>
-			
-			<!-- Add new element button -->
-			<button 
-				onclick={addTextElement}
-				class="w-full mb-6 px-4 py-2 bg-sky-600 text-white font-medium rounded-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-			>
-				+ Add Text Element
-			</button>
+		<Card width="w-[350px]" padding="p-5">
+			<div class="mb-6">
+				<h3 class="text-lg font-medium mb-4">Properties</h3>
+				
+				<!-- Add new element button -->
+				<button 
+					onclick={addTextElement}
+					class="w-full px-4 py-2 bg-sky-600 text-white font-medium rounded-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+				>
+					+ Add Text Element
+				</button>
+			</div>
 			
 			{#if selectedElement}
-				<!-- Text Content -->
-				<div class="property-group">
-					<p class="property-label block">Text Content</p>
-					<input 
-						type="text" 
-						bind:value={textContent} 
-						oninput={updateTextContent}
-						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-500"
-					/>
-				</div>
-				
-				<!-- Font Size -->
-				<div class="property-group">
-					<p class="property-label block">Font Size (px)</p>
-					<div class="flex items-center">
-						<input 
-							type="range" 
-							bind:value={fontSize} 
-							oninput={updateFontSize}
-							min="8" 
-							max="72" 
-							step="1"
-							class="w-2/3 mr-2"
-						/>
-						<input 
-							type="number" 
-							bind:value={fontSize} 
-							oninput={updateFontSize}
-							min="8" 
-							max="72" 
-							class="w-1/3 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-500"
-						/>
+				<div class="overflow-y-auto max-h-[420px] pr-2">
+					<!-- Text Content Section -->
+					<div class="property-section">
+						<h4 class="property-title">Text Content</h4>
+						
+						<!-- Text Content -->
+						<div class="property-group">
+							<p class="property-label block">Content</p>
+							<input 
+								type="text" 
+								bind:value={textContent} 
+								oninput={updateTextContent}
+								class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-500"
+							/>
+						</div>
+						
+						<!-- Font Family -->
+						<div class="property-group">
+							<p class="property-label block">Font Family</p>
+							<select 
+								bind:value={fontFamily} 
+								onchange={updateFontFamily}
+								class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-500"
+							>
+								{#each fontFamilies as family}
+									<option value={family} style={`font-family: ${family}`}>{family.split(',')[0]}</option>
+								{/each}
+							</select>
+						</div>
+						
+						<!-- Font Size -->
+						<div class="property-group">
+							<p class="property-label block">Font Size (px)</p>
+							<div class="flex items-center">
+								<input 
+									type="range" 
+									bind:value={fontSize} 
+									oninput={updateFontSize}
+									min="8" 
+									max="72" 
+									step="1"
+									class="w-2/3 mr-2"
+								/>
+								<input 
+									type="number" 
+									bind:value={fontSize} 
+									oninput={updateFontSize}
+									min="8" 
+									max="72" 
+									class="w-1/3 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-500"
+								/>
+							</div>
+						</div>
+						
+						<!-- Text Color -->
+						<div class="property-group">
+							<p class="property-label block">Text Color</p>
+							<div class="flex items-center">
+								<input 
+									type="color" 
+									bind:value={textColor} 
+									oninput={updateTextColor}
+									class="w-10 h-10 p-0 border border-gray-300 rounded-md cursor-pointer"
+								/>
+								<input 
+									type="text" 
+									bind:value={textColor} 
+									oninput={updateTextColor}
+									class="ml-2 flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-500"
+								/>
+							</div>
+						</div>
+						
+						<!-- Text Alignment -->
+						<div class="property-group">
+							<p class="property-label block">Text Alignment</p>
+							<div class="flex items-center space-x-2">
+								<button 
+									onclick={() => { textAlign = 'left'; updateTextAlign(); }}
+									class={`flex-1 px-3 py-2 border ${textAlign === 'left' ? 'bg-sky-100 border-sky-500' : 'border-gray-300'} rounded-md focus:outline-none`}
+								>
+									Left
+								</button>
+								<button 
+									onclick={() => { textAlign = 'center'; updateTextAlign(); }}
+									class={`flex-1 px-3 py-2 border ${textAlign === 'center' ? 'bg-sky-100 border-sky-500' : 'border-gray-300'} rounded-md focus:outline-none`}
+								>
+									Center
+								</button>
+								<button 
+									onclick={() => { textAlign = 'right'; updateTextAlign(); }}
+									class={`flex-1 px-3 py-2 border ${textAlign === 'right' ? 'bg-sky-100 border-sky-500' : 'border-gray-300'} rounded-md focus:outline-none`}
+								>
+									Right
+								</button>
+							</div>
+						</div>
 					</div>
-				</div>
-				
-				<!-- Text Color -->
-				<div class="property-group">
-					<p class="property-label block">Text Color</p>
-					<div class="flex items-center">
-						<input 
-							type="color" 
-							bind:value={textColor} 
-							oninput={updateTextColor}
-							class="w-10 h-10 p-0 border border-gray-300 rounded-md cursor-pointer"
-						/>
-						<input 
-							type="text" 
-							bind:value={textColor} 
-							oninput={updateTextColor}
-							class="ml-2 flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-500"
-						/>
+					
+					<!-- Background Section -->
+					<div class="property-section">
+						<h4 class="property-title">Background</h4>
+						
+						<!-- Background Color -->
+						<div class="property-group">
+							<p class="property-p block">Background Color</p>
+							<div class="flex items-center">
+								<input 
+									type="color" 
+									bind:value={backgroundColor} 
+									oninput={updateBackgroundColor}
+									class="w-10 h-10 p-0 border border-gray-300 rounded-md cursor-pointer"
+								/>
+								<input 
+									type="text" 
+									bind:value={backgroundColor} 
+									oninput={updateBackgroundColor}
+									class="ml-2 flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-500"
+								/>
+							</div>
+						</div>
+						
+						<!-- Opacity -->
+						<div class="property-group">
+							<p class="property-label block">Opacity ({opacity}%)</p>
+							<div class="flex items-center">
+								<input 
+									type="range" 
+									bind:value={opacity} 
+									oninput={updateOpacity}
+									min="0" 
+									max="100" 
+									step="1"
+									class="w-full"
+								/>
+							</div>
+						</div>
 					</div>
-				</div>
-				
-				<!-- Position information -->
-				<div class="mt-6 p-3 bg-gray-50 rounded-md text-sm text-gray-700">
-					<p><strong>Position:</strong> 
-						L: {parseInt(selectedElement.style.left) || 0}px, 
-						T: {parseInt(selectedElement.style.top) || 0}px
-					</p>
-					<p><strong>Size:</strong> 
-						W: {selectedElement.offsetWidth}px, 
-						H: {selectedElement.offsetHeight}px
-					</p>
+					
+					<!-- Border Section -->
+					<div class="property-section">
+						<h4 class="property-title">Border</h4>
+						
+						<!-- Border Width -->
+						<div class="property-group">
+							<p class="property-label block">Width (px)</p>
+							<div class="flex items-center">
+								<input 
+									type="range" 
+									bind:value={borderWidth} 
+									oninput={updateBorder}
+									min="0" 
+									max="10" 
+									step="1"
+									class="w-2/3 mr-2"
+								/>
+								<input 
+									type="number" 
+									bind:value={borderWidth} 
+									oninput={updateBorder}
+									min="0" 
+									max="10" 
+									class="w-1/3 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-500"
+								/>
+							</div>
+						</div>
+						
+						<!-- Border Color -->
+						<div class="property-group">
+							<p class="property-label block">Color</p>
+							<div class="flex items-center">
+								<input 
+									type="color" 
+									bind:value={borderColor} 
+									oninput={updateBorder}
+									class="w-10 h-10 p-0 border border-gray-300 rounded-md cursor-pointer"
+								/>
+								<input 
+									type="text" 
+									bind:value={borderColor} 
+									oninput={updateBorder}
+									class="ml-2 flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-500"
+								/>
+							</div>
+						</div>
+						
+						<!-- Border Style -->
+						<div class="property-group">
+							<p class="property-label block">Style</p>
+							<select 
+								bind:value={borderStyle} 
+								onchange={updateBorder}
+								class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-500"
+							>
+								{#each borderStyles as style}
+									<option value={style}>{style.charAt(0).toUpperCase() + style.slice(1)}</option>
+								{/each}
+							</select>
+						</div>
+						
+						<!-- Border Radius -->
+						<div class="property-group">
+							<p class="property-label block">Radius (px)</p>
+							<div class="flex items-center">
+								<input 
+									type="range" 
+									bind:value={borderRadius} 
+									oninput={updateBorderRadius}
+									min="0" 
+									max="50" 
+									step="1"
+									class="w-2/3 mr-2"
+								/>
+								<input 
+									type="number" 
+									bind:value={borderRadius} 
+									oninput={updateBorderRadius}
+									min="0" 
+									max="50" 
+									class="w-1/3 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-sky-500"
+								/>
+							</div>
+						</div>
+					</div>
+					
+					<!-- Position information -->
+					<div class="mt-3 p-3 bg-gray-50 rounded-md text-sm text-gray-700">
+						<p><strong>Position:</strong> 
+							L: {parseInt(selectedElement.style.left) || 0}px, 
+							T: {parseInt(selectedElement.style.top) || 0}px
+						</p>
+						<p><strong>Size:</strong> 
+							W: {selectedElement.offsetWidth}px, 
+							H: {selectedElement.offsetHeight}px
+						</p>
+					</div>
 				</div>
 			{:else}
 				<p class="text-gray-500">Select an element to edit its properties</p>
