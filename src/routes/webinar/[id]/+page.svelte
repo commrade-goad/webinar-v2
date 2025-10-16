@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 
-	// TODO: Tambah Sertifikat
 	import { page } from '$app/state';
 	import Body from '$lib/components/Body.svelte';
 	import Card from '$lib/components/Card.svelte';
@@ -13,7 +12,6 @@
 	let data: Partial<IEvent> = $state({});
 	let participantCount = $state(0);
 	let participantData: Partial<EventParticipant> = $state({});
-	let certExist: boolean = $state(false);
 	let isLoading = $state(true);
 	let error = $state('');
 	let addPanitiaMenu = $state(false);
@@ -331,7 +329,7 @@
 			const end = new Date(data.EventDEnd);
 			let first = now.getTime() > end.getTime();
 			// Check if the cert is available and created
-			return certExist && first;
+			return first;
 		}
 		return false;
 	};
@@ -381,31 +379,6 @@
 		} catch (err) {
 			console.error('Error fetching users:', err);
 			error = err instanceof Error ? err.message : 'Failed to fetch users';
-		}
-	};
-
-	const getCertStatus = async () => {
-		try {
-			const response = await fetch('/api/get-event-cert-info', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					id: webinarId
-				})
-			});
-
-			if (!response.ok) {
-				throw new Error(`Error: ${response.status}`);
-			}
-
-			const data: ApiResponse<EventParticipant> = await response.json();
-			if (data.success && data.data) {
-				certExist = data.success;
-			}
-		} catch (err) {
-			console.error('Error fetching event cert:', err);
 		}
 	};
 
@@ -564,7 +537,6 @@
 		await fetchData();
 		await fetchPartCount();
 		await fetchStatus();
-		await getCertStatus();
 		await getCommitteeList();
 	});
 
@@ -842,13 +814,13 @@
 									{/if}
 								</div>
 							{/if}
-							{#if !certExist && isAdminOrCommitte()}
+							{#if isAdminOrCommitte()}
 								<div class="pt-2">
 									<a
 										href={`${webinarId}/cert-editor`}
 										class="inline-flex items-center justify-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:outline-none"
 									>
-										Tambahkan sertifikat
+										Edit Template sertifikat
 									</a>
 								</div>
 							{/if}

@@ -10,8 +10,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
     const body = await request.json();
     
-// POST : api/protected/event-participate-absence-bulk
-    const url = `${env.PRIVATE_API_URL}/api/protected/event-participate-absence-bulk`;
+    const url = `${env.PRIVATE_API_URL}/api/protected/-cert-editor-upload-image`;
     
     console.log("Sending request to:", url);
     
@@ -26,7 +25,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
     if (!res.ok) {
       const errorText = await res.text();
-      return new Response(`Failed to absence all of the participant: ${errorText}`, { status: res.status });
+      return new Response(`Failed to upload the image: ${errorText}`, { status: res.status });
     }
 
     const responseData = await res.text();

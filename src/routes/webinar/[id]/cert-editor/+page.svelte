@@ -1,8 +1,9 @@
 <script lang="ts">
-	// TODO: Build the stuff bro you still didnt do the add cert api
 	import { onMount } from 'svelte';
 	import Body from '$lib/components/Body.svelte';
 	import Card from '$lib/components/Card.svelte';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 
 	// State variables for dragging and resizing
 	let isDragging = false;
@@ -16,6 +17,8 @@
 	let startWidth = 0;
 	let startHeight = 0;
 	let canvasElement: HTMLElement;
+	let backgroundURL = $state(''); // Store the background image URL
+	let webinarId = $derived(page.params.id);
 
 	// Properties for the selected element
 	let textContent = $state('Text Element');
@@ -29,6 +32,9 @@
 	let borderStyle = $state('solid');
 	let borderRadius = $state(0);
 	let opacity = $state(100); // 0-100%
+
+	// File input reference
+	let fileInputElement: HTMLInputElement;
 
 	// Available font families
 	const fontFamilies = [
@@ -78,6 +84,16 @@
 				deselectAll();
 			}
 		});
+
+		// Create a hidden file input element
+		fileInputElement = document.createElement('input');
+		fileInputElement.type = 'file';
+		fileInputElement.accept = 'image/*';
+		fileInputElement.style.display = 'none';
+		document.body.appendChild(fileInputElement);
+
+		// Add event listener for file selection
+		fileInputElement.addEventListener('change', handleFileSelected);
 	});
 
 	// Initialize a draggable element with resize handles
@@ -339,8 +355,10 @@
 	// Update text content of selected element
 	function updateTextContent() {
 		if (selectedElement) {
+			const old = selectElement;
 			selectedElement.textContent = textContent;
 			selectedElement.dataset.textContent = textContent;
+			addResizeHandles(selectedElement);
 		}
 	}
 
@@ -424,6 +442,115 @@
 		}
 	}
 
+	async function createTheCert(html: string) {
+		try {
+			const response = await fetch('/api/add-cert', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					event_id: Number(webinarId),
+				})
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			const result = await response.json();
+			return result;
+		} catch (error) {
+			console.error('Error uploading to backend:', error);
+			throw error;
+		}
+	};
+
+	// Function to handle file upload
+	function uploadBgImage() {
+		// Trigger file input click
+		fileInputElement.click();
+	}
+
+	// Handle file selection
+	async function handleFileSelected(event: Event) {
+		const input = event.target as HTMLInputElement;
+
+		if (input.files && input.files.length > 0) {
+			const file = input.files[0];
+
+			try {
+				// Read file as data URL
+				const base64String = await readFileAsDataURL(file);
+
+				// Extract the base64 part (remove data:image/...;base64,)
+				const base64Data = base64String.split(',')[1];
+
+				// Upload to backend
+				const uploadedUrl = await uploadToBackend(base64Data);
+
+				// Set as background
+				if (uploadedUrl) {
+					const noCacheUrl = `${uploadedUrl}?t=${Date.now()}`;
+					backgroundURL = noCacheUrl;
+					canvasElement.style.backgroundImage = `url('${backgroundURL}')`;
+					canvasElement.style.backgroundSize = 'cover';
+					canvasElement.style.backgroundPosition = 'center';
+					canvasElement.style.backgroundRepeat = 'no-repeat';
+				}
+			} catch (error) {
+				console.error('Error uploading image:', error);
+				alert('Failed to upload image');
+			}
+		}
+	}
+
+	// Read file as Data URL
+	function readFileAsDataURL(file: File): Promise<string> {
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onload = () => {
+				if (typeof reader.result === 'string') {
+					resolve(reader.result);
+				} else {
+					reject(new Error('Failed to read file'));
+				}
+			};
+			reader.onerror = reject;
+			reader.readAsDataURL(file);
+		});
+	}
+
+	async function uploadToBackend(base64Data: string): Promise<string> {
+		try {
+			const response = await fetch('/api/cert-edit-up', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					data: base64Data,
+					event_id: webinarId
+				})
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			const result = await response.json();
+
+			if (result.success && result.data && result.data.filename) {
+				return result.data.filename;
+			} else {
+				throw new Error('Invalid response format');
+			}
+		} catch (error) {
+			console.error('Error uploading to backend:', error);
+			throw error;
+		}
+	}
+
 	// Save the canvas as HTML
 	function saveAsHTML() {
 		// Get all elements on the canvas
@@ -433,45 +560,36 @@
 		deselectAll();
 
 		// Create HTML template
-		let htmlContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Certificate for {{ .UserName }}</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background-color: #f5f5f5;
-        }
-        .canvas {
-            position: relative;
+		let htmlContent = `<style>
+        .template-canvas {
             width: 700px;
             height: 500px;
-            background-color: #ffcccb;
+            background: #ff4444;
+            ${backgroundURL ? `background-image: url(${backgroundURL});` : ''}
+            position: relative;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
             overflow: hidden;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
         }
-        .element {
+
+        .template-object {
             position: absolute;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            word-wrap: break-word;
+            text-align: center;
             box-sizing: border-box;
-            overflow: hidden;
         }
     </style>
-</head>
-<body>
-    <div class="canvas">`;
+    <div class="template-canvas">`;
 
 		// Add each element to the HTML
 		dragables.forEach((element: HTMLElement) => {
-			// Remove the resize handles if they exist
-			const handles = element.querySelectorAll('.resize-handle');
-			handles.forEach((handle) => handle.remove());
-
 			// Get the element style properties
 			const left = element.style.left;
 			const top = element.style.top;
@@ -487,57 +605,90 @@
 			const borderStyle = element.style.borderStyle;
 			const borderRadius = element.style.borderRadius;
 			const opacity = element.style.opacity;
-			const padding = element.style.padding;
+			const padding = element.style.padding || '8px';
 			const justifyContent =
 				element.style.justifyContent !== '' ? element.style.justifyContent : 'center';
-			const alignItems = element.style.alignItems;
+			const alignItems = 'center';
 			const display = 'flex';
 
 			// Get text content
 			const textContent = element.textContent || '';
-			const alItems = 'center';
 
 			// Create element HTML
 			htmlContent += `
-        <div class="element" style="left: ${left}; top: ${top}; width: ${width}; height: ${height}; 
+        <div class="template-object" style="left: ${left}; top: ${top}; width: ${width}; height: ${height}; 
             font-size: ${fontSize}; font-family: ${fontFamily}; color: ${color}; text-align: ${textAlign}; 
             background-color: ${backgroundColor}; border-width: ${borderWidth}; border-color: ${borderColor}; 
             border-style: ${borderStyle}; border-radius: ${borderRadius}; opacity: ${opacity}; padding: ${padding};
-            justify-content: ${justifyContent}; align-items: ${alignItems}; display: ${display}; align-items: ${alItems}">
+            justify-content: ${justifyContent}; align-items: ${alignItems}; display: ${display};">
             ${textContent}
         </div>`;
-			handles.forEach((handle) => element.appendChild(handle));
 		});
 
 		// Close HTML template
 		htmlContent += `
-    </div>
-</body>
-</html>`;
+    </div>`;
+
+		// // Log to console
+		// console.log(htmlContent);
+
+		// Upload the HTML content to the backend
+		uploadCertTemplate(btoa(htmlContent));
 
 		// Optionally, create a download link
-		const blob = new Blob([htmlContent], { type: 'text/html' });
-		const url = URL.createObjectURL(blob);
+		// const blob = new Blob([htmlContent], { type: 'text/html' });
+		// const url = URL.createObjectURL(blob);
 
-		const downloadLink = document.createElement('a');
-		downloadLink.href = url;
-		downloadLink.download = 'certificate.html';
+		// const downloadLink = document.createElement('a');
+		// downloadLink.href = url;
+		// downloadLink.download = 'certificate.html';
 
-		// Optional: Trigger download
-		downloadLink.click();
+		// // Trigger download
+		// downloadLink.click();
 
 		// Clean up
-		setTimeout(() => {
-			URL.revokeObjectURL(url);
-		}, 100);
+		// setTimeout(() => {
+		// 	URL.revokeObjectURL(url);
+		// }, 100);
 
 		// Show a brief success message
-		alert('Certificate HTML saved to console!');
+		alert('Certificate HTML saved!');
+		goto(`/webinar/${webinarId}`);
+	}
+
+	// Upload the certificate template to the backend
+	async function uploadCertTemplate(base64HtmlData: string) {
+		const res = await createTheCert(base64HtmlData);
+		if (!res.success) console.log("Failed to create the cert maybe its already exist?")
+		try {
+			const response = await fetch('/api/cert-edit-up-html', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					data: base64HtmlData,
+					event_id: webinarId
+				})
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			const result = await response.json();
+
+			if (!result.success) {
+				alert(result.message || 'Failed to upload template');
+			}
+		} catch (error) {
+			alert(`Error uploading template to backend: ${error}`);
+		}
 	}
 
 	let windowTooSmall = $state(false);
 	function checkScreenSize() {
-		const minWidth = 1024; // or whatever width you consider "too small"
+		const minWidth = 1024;
 		const minHeight = 600;
 
 		if (window.innerWidth < minWidth || window.innerHeight < minHeight) {
@@ -574,18 +725,27 @@
 				>
 					Save as HTML
 				</button>
+				<button
+					onclick={uploadBgImage}
+					class="rounded-md bg-sky-600 px-4 py-2 font-medium text-white hover:bg-sky-700 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+				>
+					Upload Image
+				</button>
 			</div>
 		</div>
+			<div class='mb-2'>
+				<p>Note: </p>
+				<p>{"Format username: {{ .UserName }}  ||  Format id: {{ .UniqueID }}  ||  Format webinar: {{ .EventName }}  ||  Format role: {{ .UserRole }} "}</p>
+			</div>
 		<div class="flex h-full flex-row flex-wrap justify-center gap-4">
 			<Card width="w-fit" padding="p-5">
-				<div id="canvas" class="h-[500px] w-[700px] rounded-xl bg-red-100">
-					<!-- Initial text element -->
-					<div
-						class="dragable text-element"
-						style="left: 50px; top: 50px; width: 150px; height: 50px;"
-					>
-						Text Element
-					</div>
+				<div
+					id="canvas"
+					class="h-[500px] w-[700px] rounded-xl bg-red-100"
+					style={backgroundURL
+						? `background-image: url('${backgroundURL}'); background-size: cover; background-position: center; background-repeat: no-repeat;`
+						: ''}
+				>
 				</div>
 			</Card>
 			<Card width="w-[450px]" padding="p-5">

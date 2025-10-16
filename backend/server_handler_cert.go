@@ -78,7 +78,7 @@ func appHandleCertTempNew(backend *Backend, route fiber.Router) {
 		if res.Error != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success":    false,
-				"message":    fmt.Sprintf("Failed to create new event material, %v", res.Error),
+				"message":    fmt.Sprintf("Failed to create new cert, %v", res.Error),
 				"error_code": 5,
 				"data":       nil,
 			})
@@ -796,7 +796,10 @@ func appHandleCertEditorUploadImage(backend *Backend, route fiber.Router) {
 		}
 
 		contentType := http.DetectContentType(decoded)
-		if contentType != "image/png" {
+		if contentType != "image/png" &&
+		contentType != "image/webp" &&
+		contentType != "image/jpeg" &&
+		contentType != "image/jpg" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"success":    false,
 				"message":    fmt.Sprintf("Invalid content type: %s", contentType),
