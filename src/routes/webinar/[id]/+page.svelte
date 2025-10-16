@@ -226,7 +226,7 @@
 			const data: ApiResponse<string> = await response.json();
 			if (!data.success) throw new Error(`Error: ${data.message}`);
 		} catch (err) {
-			console.error('Error fetching participant data:', err);
+			console.error('Error absence all:', err);
 		}
 	};
 
