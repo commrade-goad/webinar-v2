@@ -27,6 +27,7 @@
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.12.4",
 		"globals": "^16.4.0",
+		"html2canvas": "^1.4.1",
 		"jsonwebtoken": "^9.0.2",
 		"luxon": "^3.7.2",
 		"prettier": "^3.6.2",
