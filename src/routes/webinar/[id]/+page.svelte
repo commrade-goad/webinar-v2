@@ -18,7 +18,7 @@
 	let user = $derived(page.data.user);
 
 	let isRegistered = $state(false);
-	
+
 	// Edit form state
 	let isEditMode = $state(false);
 	let eventName = $state('');
@@ -32,6 +32,93 @@
 	let eventAtt = $state('online');
 	let eventImg = $state('');
 	let imageFile = $state<File | null>(null);
+
+	const getAllParticipant = async () => {
+		try {
+			error = '';
+			isLoading = true;
+
+			const response = await fetch('/api/get-event-part', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ id: Number(webinarId) })
+			});
+
+			if (!response.ok) {
+				throw new Error(`Error: ${response.status}`);
+			}
+
+			const apiResponse: ApiResponse<EventParticipant[]> = await response.json();
+
+			// Expect data to be an array of EventParticipant
+			const participants = Array.isArray(apiResponse.data) ? apiResponse.data : [];
+			let allParticipant = [];
+
+			// If no participants return early
+			if (!participants.length) {
+				alert('Tidak ada partisipan untuk webinar ini.');
+				return;
+			}
+
+			// CSV header (Name, Email, Role)
+			const header = ['Name', 'Email', 'Role'];
+
+			// CSV escaping helper
+			const esc = (val: any) => {
+				if (val === null || val === undefined) return '';
+				const s = String(val);
+				const escaped = s.replace(/"/g, '""');
+				if (/[",\r\n]/.test(escaped)) {
+					return `"${escaped}"`;
+				}
+				return escaped;
+			};
+
+			const rows: string[] = [];
+			rows.push(header.join(','));
+
+			// Build allParticipant array and CSV rows
+			allParticipant = participants.map((p, idx) => {
+				const user = p.User;
+				const name = user?.UserFullName ?? '';
+				const email = user?.UserEmail ?? '';
+				const role = p.EventPRole ?? '';
+
+				// push CSV row
+				const row = [name, email, role].map(esc).join(',');
+				rows.push(row);
+
+				// return simplified user record for UI usage
+				return {
+					ID: user?.ID ?? 0,
+					UserFullName: name,
+					UserEmail: email,
+					UserInstance: user?.UserInstance ?? ''
+				} as Partial<User>;
+			});
+
+			// Create CSV blob and trigger download
+			const csvContent = rows.join('\r\n');
+			const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+			const url = URL.createObjectURL(blob);
+
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `participants-${webinarId}.csv`;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+
+			// cleanup
+			setTimeout(() => URL.revokeObjectURL(url), 1500);
+		} catch (err) {
+			console.error('Error fetching participants:', err);
+			error = err instanceof Error ? err.message : String(err);
+			alert(`Gagal mengambil daftar partisipan: ${error}`);
+		} finally {
+			isLoading = false;
+		}
+	};
 
 	const formatDate = (dateString: string) => {
 		if (!dateString) return 'Not specified';
@@ -75,7 +162,7 @@
 			// Parse dates for the form
 			const startDates = parseDateFromAPI(data.EventDStart || '');
 			const endDates = parseDateFromAPI(data.EventDEnd || '');
-			
+
 			// Set form fields
 			eventName = data.EventName || '';
 			eventDesc = data.EventDesc || '';
@@ -88,7 +175,7 @@
 			eventAtt = data.EventAtt || 'online';
 			eventImg = data.EventImg || '';
 		}
-		
+
 		isEditMode = !isEditMode;
 	}
 
@@ -194,10 +281,10 @@
 
 			// Update the displayed data
 			await fetchData();
-			
+
 			// Exit edit mode
 			isEditMode = false;
-			
+
 			alert('Webinar berhasil diperbarui');
 		} catch (err) {
 			console.error('Error updating webinar:', err);
@@ -581,34 +668,34 @@
 		</Card>
 	{:else}
 		<div class="flex flex-col">
-			<div class="flex flex-row justify-between items-center">
+			<div class="flex flex-row items-center justify-between">
 				{#if isEditMode}
-					<input 
-						type="text" 
-						bind:value={eventName} 
-						class="mt-6 mb-12 text-3xl font-bold text-sky-600 sm:mb-6 border-b border-sky-300 focus:outline-none focus:border-sky-600"
-						placeholder="Nama Webinar" 
+					<input
+						type="text"
+						bind:value={eventName}
+						class="mt-6 mb-12 border-b border-sky-300 text-3xl font-bold text-sky-600 focus:border-sky-600 focus:outline-none sm:mb-6"
+						placeholder="Nama Webinar"
 					/>
 				{:else}
 					<h1 class="mt-6 mb-12 text-3xl font-bold text-sky-600 sm:mb-6">{data.EventName}</h1>
 				{/if}
-				
+
 				{#if isAdminOrCommitte()}
 					{#if isEditMode}
 						<div class="space-x-2">
 							<button
 								onclick={() => toggleEditMode()}
-								class="items-center justify-center rounded-xl bg-gray-500 px-4 py-2 text-sm
-								font-medium text-white hover:bg-gray-600 focus:ring-2 focus:ring-gray-400
-								focus:ring-offset-2 focus:outline-none h-12"
+								class="h-12 items-center justify-center rounded-xl bg-gray-500 px-4 py-2
+								text-sm font-medium text-white hover:bg-gray-600 focus:ring-2
+								focus:ring-gray-400 focus:ring-offset-2 focus:outline-none"
 							>
 								Batal
 							</button>
 							<button
 								onclick={saveWebinarChanges}
-								class="items-center justify-center rounded-xl bg-sky-600 px-4 py-2 text-sm
-								font-medium text-white hover:bg-sky-700 focus:ring-2 focus:ring-sky-500
-								focus:ring-offset-2 focus:outline-none h-12"
+								class="h-12 items-center justify-center rounded-xl bg-sky-600 px-4 py-2
+								text-sm font-medium text-white hover:bg-sky-700 focus:ring-2
+								focus:ring-sky-500 focus:ring-offset-2 focus:outline-none"
 							>
 								Simpan
 							</button>
@@ -616,9 +703,9 @@
 					{:else}
 						<button
 							onclick={toggleEditMode}
-							class="items-center justify-center rounded-xl bg-sky-600 px-4 py-2 text-sm
-							font-medium text-white hover:bg-sky-700 focus:ring-2 focus:ring-sky-500
-							focus:ring-offset-2 focus:outline-none h-12"
+							class="h-12 items-center justify-center rounded-xl bg-sky-600 px-4 py-2
+							text-sm font-medium text-white hover:bg-sky-700 focus:ring-2
+							focus:ring-sky-500 focus:ring-offset-2 focus:outline-none"
 						>
 							Edit
 						</button>
@@ -633,11 +720,28 @@
 							{#if isEditMode}
 								<div class="w-full">
 									{#if eventImg || data.EventImg}
-										<img src={eventImg || data.EventImg} alt="Poster webinar" class="max-h-128 max-w-full mb-4" />
+										<img
+											src={eventImg || data.EventImg}
+											alt="Poster webinar"
+											class="mb-4 max-h-128 max-w-full"
+										/>
 									{/if}
-									<label class="flex w-full cursor-pointer flex-col items-center rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center hover:bg-gray-100">
-										<svg class="mb-2 h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+									<label
+										class="flex w-full cursor-pointer flex-col items-center rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center hover:bg-gray-100"
+									>
+										<svg
+											class="mb-2 h-8 w-8 text-gray-400"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+											xmlns="http://www.w3.org/2000/svg"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+											></path>
 										</svg>
 										<p class="mb-1 text-sm text-gray-500">
 											<span class="font-semibold">Tekan untuk upload poster</span>
@@ -692,7 +796,10 @@
 							<div>
 								<p class="text-sm text-gray-500">Tipe Acara</p>
 								{#if isEditMode}
-									<select bind:value={eventAtt} class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-sky-500 focus:ring-sky-500 focus:outline-none">
+									<select
+										bind:value={eventAtt}
+										class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-sky-500 focus:ring-sky-500 focus:outline-none"
+									>
 										<option value="online">Online</option>
 										<option value="offline">Offline</option>
 									</select>
@@ -823,6 +930,17 @@
 										Edit Template sertifikat
 									</a>
 								</div>
+
+								<div class="pt-2">
+									<button
+										onclick={() => {
+											getAllParticipant();
+										}}
+										class="inline-flex items-center justify-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:outline-none"
+									>
+										Download list partisipant
+									</button>
+								</div>
 							{/if}
 						</div>
 					</Card>
@@ -832,11 +950,11 @@
 							<div>
 								<h2 class="mb-1 text-xl font-semibold">Pembicara</h2>
 								{#if isEditMode}
-									<input 
-										type="text" 
-										bind:value={eventSpeaker} 
-										class="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-sky-500 focus:outline-none"
-										placeholder="Nama Pembicara" 
+									<input
+										type="text"
+										bind:value={eventSpeaker}
+										class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-sky-500 focus:outline-none"
+										placeholder="Nama Pembicara"
 									/>
 								{:else}
 									<p class="text-lg">{data.EventSpeaker || 'Tidak Ada Informasi'}</p>
@@ -850,16 +968,16 @@
 										<div>
 											<p class="text-sm text-gray-500">Mulai</p>
 											<div class="flex space-x-2">
-												<input 
-													type="date" 
+												<input
+													type="date"
 													bind:value={eventDstart}
-													class="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-sky-500 focus:outline-none" 
+													class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-sky-500 focus:outline-none"
 													required
 												/>
-												<input 
-													type="time" 
+												<input
+													type="time"
 													bind:value={eventTimeStart}
-													class="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-sky-500 focus:outline-none" 
+													class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-sky-500 focus:outline-none"
 													required
 												/>
 											</div>
@@ -867,16 +985,16 @@
 										<div>
 											<p class="text-sm text-gray-500">Selesai</p>
 											<div class="flex space-x-2">
-												<input 
-													type="date" 
+												<input
+													type="date"
 													bind:value={eventDend}
-													class="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-sky-500 focus:outline-none" 
+													class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-sky-500 focus:outline-none"
 													required
 												/>
-												<input 
-													type="time" 
+												<input
+													type="time"
 													bind:value={eventTimeEnd}
-													class="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-sky-500 focus:outline-none" 
+													class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-sky-500 focus:outline-none"
 													required
 												/>
 											</div>
@@ -902,9 +1020,9 @@
 						<h2 class="mb-3 text-xl font-semibold">Deskripsi</h2>
 						<div class="prose max-w-none">
 							{#if isEditMode}
-								<textarea 
-									bind:value={eventDesc} 
-									class="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-sky-500 focus:outline-none"
+								<textarea
+									bind:value={eventDesc}
+									class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-sky-500 focus:outline-none"
 									rows="5"
 									placeholder="Deskripsi webinar"
 								></textarea>
@@ -917,11 +1035,11 @@
 						<h2 class="mt-3 mb-3 text-xl font-semibold">Link/Tempat</h2>
 						<div class="prose max-w-none">
 							{#if isEditMode}
-								<input 
-									type="text" 
-									bind:value={eventLink} 
-									class="w-full px-3 py-2 border border-gray-300 rounded-md focus:border-sky-500 focus:outline-none"
-									placeholder="Link meeting atau alamat tempat acara" 
+								<input
+									type="text"
+									bind:value={eventLink}
+									class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-sky-500 focus:outline-none"
+									placeholder="Link meeting atau alamat tempat acara"
 								/>
 							{:else if data.EventLink}
 								{#if data.EventAtt === 'offline'}

@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-    ip := "0.0.0.0"
+    ip := "127.0.0.1"
     port := 3000
 
     ip_env   := os.Getenv("WRPL_IP")
